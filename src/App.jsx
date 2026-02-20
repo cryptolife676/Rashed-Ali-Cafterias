@@ -511,8 +511,10 @@ function Dashboard({ user }) {
 
     const { data: incToday } = await supabase.from('income_entries').select('*').gte('entry_date', todayStr).lte('entry_date', todayStr);
     const { data: expToday } = await supabase.from('expense_entries').select('*').gte('entry_date', todayStr).lte('entry_date', todayStr);
-    const { data: incMonth } = await supabase.from('income_entries').select('*').gte('entry_date', monthStr + '-01').lte('entry_date', monthStr + '-31');
-    const { data: expMonth } = await supabase.from('expense_entries').select('*').gte('entry_date', monthStr + '-01').lte('entry_date', monthStr + '-31');
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const { data: incMonth } = await supabase.from('income_entries').select('*').gte('entry_date', monthStart).lte('entry_date', monthEnd);
+    const { data: expMonth } = await supabase.from('expense_entries').select('*').gte('entry_date', monthStart).lte('entry_date', monthEnd);
 
     const byBranch = {};
     branchList.forEach(b => {
@@ -777,7 +779,10 @@ function EntriesPage({ user, type }) {
     let q = supabase.from(table).select('*, branches(name)').order('entry_date', { ascending: false });
     if (filterBranch) q = q.eq('branch_id', filterBranch);
     if (filterMonth) {
-      q = q.gte('entry_date', filterMonth + '-01').lte('entry_date', filterMonth + '-31');
+      const [fYear, fMon] = filterMonth.split('-').map(Number);
+      const fStart = new Date(fYear, fMon - 1, 1).toISOString().split('T')[0];
+      const fEnd = new Date(fYear, fMon, 0).toISOString().split('T')[0];
+      q = q.gte('entry_date', fStart).lte('entry_date', fEnd);
     }
     const { data } = await q;
     setEntries(data || []);
@@ -1392,8 +1397,9 @@ function Reports({ user }) {
 
   const loadReport = async () => {
     setLoading(true);
-    const start = filterMonth + '-01';
-    const end = filterMonth + '-31';
+    const [rYear, rMon] = filterMonth.split('-').map(Number);
+    const start = new Date(rYear, rMon - 1, 1).toISOString().split('T')[0];
+    const end = new Date(rYear, rMon, 0).toISOString().split('T')[0];
     let iq = supabase.from('income_entries').select('*, branches(name)').gte('entry_date', start).lte('entry_date', end);
     let eq = supabase.from('expense_entries').select('*, branches(name)').gte('entry_date', start).lte('entry_date', end);
     if (filterBranch) { iq = iq.eq('branch_id', filterBranch); eq = eq.eq('branch_id', filterBranch); }
