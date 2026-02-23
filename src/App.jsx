@@ -494,9 +494,17 @@ function Dashboard({ user }) {
   const [branches, setBranches] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     loadData();
+    // Realtime: auto-refresh whenever any income or expense entry changes
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'income_entries' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_entries' }, () => loadData())
+      .subscribe();
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const loadData = async () => {
@@ -507,12 +515,13 @@ function Dashboard({ user }) {
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const monthStr = now.toISOString().slice(0, 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
     const { data: incToday } = await supabase.from('income_entries').select('*').gte('entry_date', todayStr).lte('entry_date', todayStr);
     const { data: expToday } = await supabase.from('expense_entries').select('*').gte('entry_date', todayStr).lte('entry_date', todayStr);
-    const { data: incMonth } = await supabase.from('income_entries').select('*').gte('entry_date', monthStr + '-01').lte('entry_date', monthStr + '-31');
-    const { data: expMonth } = await supabase.from('expense_entries').select('*').gte('entry_date', monthStr + '-01').lte('entry_date', monthStr + '-31');
+    const { data: incMonth } = await supabase.from('income_entries').select('*').gte('entry_date', monthStart).lte('entry_date', monthEnd);
+    const { data: expMonth } = await supabase.from('expense_entries').select('*').gte('entry_date', monthStart).lte('entry_date', monthEnd);
 
     const byBranch = {};
     branchList.forEach(b => {
@@ -524,6 +533,7 @@ function Dashboard({ user }) {
     (expMonth || []).forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].expMonth += Number(e.amount); });
 
     setStats(byBranch);
+    setLastUpdated(new Date());
     setLoading(false);
   };
 
@@ -536,6 +546,7 @@ function Dashboard({ user }) {
         <div>
           <div className="page-title">Dashboard</div>
           <div className="page-subtitle">Welcome back, {user.full_name} — {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+          {lastUpdated && <div style={{ fontSize: 11, color: '#444', marginTop: 2 }}>Last updated: {lastUpdated.toLocaleTimeString()}</div>}
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <img src="/dashboard.png" alt="" style={{ height: 60, opacity: 0.6 }}
@@ -777,7 +788,10 @@ function EntriesPage({ user, type }) {
     let q = supabase.from(table).select('*, branches(name)').order('entry_date', { ascending: false });
     if (filterBranch) q = q.eq('branch_id', filterBranch);
     if (filterMonth) {
-      q = q.gte('entry_date', filterMonth + '-01').lte('entry_date', filterMonth + '-31');
+      const [fYear, fMon] = filterMonth.split('-').map(Number);
+      const fStart = new Date(fYear, fMon - 1, 1).toISOString().split('T')[0];
+      const fEnd = new Date(fYear, fMon, 0).toISOString().split('T')[0];
+      q = q.gte('entry_date', fStart).lte('entry_date', fEnd);
     }
     const { data } = await q;
     setEntries(data || []);
@@ -1379,9 +1393,10 @@ function Reports({ user }) {
   const [filterBranch, setFilterBranch] = useState('');
   const [filterMonth, setFilterMonth] = useState(thisMonth());
   const [loading, setLoading] = useState(true);
+  const [showDailyPartner, setShowDailyPartner] = useState(false);
 
   useEffect(() => { loadBranches(); }, []);
-  useEffect(() => { if (branches.length >= 0) loadReport(); }, [filterBranch, filterMonth]);
+  useEffect(() => { loadReport(); }, [filterBranch, filterMonth]);
 
   const loadBranches = async () => {
     const { data: b } = await supabase.from('branches').select('*');
@@ -1392,10 +1407,11 @@ function Reports({ user }) {
 
   const loadReport = async () => {
     setLoading(true);
-    const start = filterMonth + '-01';
-    const end = filterMonth + '-31';
-    let iq = supabase.from('income_entries').select('*, branches(name)').gte('entry_date', start).lte('entry_date', end);
-    let eq = supabase.from('expense_entries').select('*, branches(name)').gte('entry_date', start).lte('entry_date', end);
+    const [rYear, rMon] = filterMonth.split('-').map(Number);
+    const start = new Date(rYear, rMon - 1, 1).toISOString().split('T')[0];
+    const end = new Date(rYear, rMon, 0).toISOString().split('T')[0];
+    let iq = supabase.from('income_entries').select('*, branches(name)').gte('entry_date', start).lte('entry_date', end).order('entry_date');
+    let eq = supabase.from('expense_entries').select('*, branches(name)').gte('entry_date', start).lte('entry_date', end).order('entry_date');
     if (filterBranch) { iq = iq.eq('branch_id', filterBranch); eq = eq.eq('branch_id', filterBranch); }
     const [{ data: inc }, { data: exp }] = await Promise.all([iq, eq]);
     setIncomeData(inc || []);
@@ -1413,19 +1429,52 @@ function Reports({ user }) {
   const expByCategory = {};
   expenseData.forEach(e => { expByCategory[e.category] = (expByCategory[e.category] || 0) + Number(e.amount); });
 
-  // Per branch
+  // Per branch totals
   const byBranch = {};
   branches.forEach(b => { byBranch[b.id] = { name: b.name, income: 0, expense: 0 }; });
   incomeData.forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].income += Number(e.amount); });
   expenseData.forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].expense += Number(e.amount); });
 
-  // Partner shares
+  // Partner monthly shares
   const partnerShares = partners.map(p => {
-    const branchIncome = Object.values(byBranch).find((_, i) => Object.keys(byBranch)[i] === p.branch_id)?.income || 0;
     const branchProfit = (byBranch[p.branch_id]?.income || 0) - (byBranch[p.branch_id]?.expense || 0);
     const share = branchProfit * (Number(p.ownership_pct) / 100);
     return { ...p, branchProfit, share, branchName: byBranch[p.branch_id]?.name || '—' };
   }).filter(p => !filterBranch || p.branch_id === filterBranch);
+
+  // Day-by-day profit per branch
+  const dailyMap = {};
+  incomeData.forEach(e => {
+    if (!dailyMap[e.entry_date]) dailyMap[e.entry_date] = {};
+    if (!dailyMap[e.entry_date][e.branch_id]) dailyMap[e.entry_date][e.branch_id] = { income: 0, expense: 0 };
+    dailyMap[e.entry_date][e.branch_id].income += Number(e.amount);
+  });
+  expenseData.forEach(e => {
+    if (!dailyMap[e.entry_date]) dailyMap[e.entry_date] = {};
+    if (!dailyMap[e.entry_date][e.branch_id]) dailyMap[e.entry_date][e.branch_id] = { income: 0, expense: 0 };
+    dailyMap[e.entry_date][e.branch_id].expense += Number(e.amount);
+  });
+  const sortedDays = Object.keys(dailyMap).sort();
+
+  // Daily partner shares — running accumulation
+  const partnerDailyRows = [];
+  const runningTotals = {};
+  partners.filter(p => !filterBranch || p.branch_id === filterBranch).forEach(p => { runningTotals[p.id] = 0; });
+
+  sortedDays.forEach(date => {
+    partners.filter(p => !filterBranch || p.branch_id === filterBranch).forEach(p => {
+      const dayData = dailyMap[date]?.[p.branch_id];
+      if (!dayData) return;
+      const dayProfit = dayData.income - dayData.expense;
+      const dayShare = dayProfit * (Number(p.ownership_pct) / 100);
+      runningTotals[p.id] = (runningTotals[p.id] || 0) + dayShare;
+      partnerDailyRows.push({
+        date, partnerName: p.name, branchName: byBranch[p.branch_id]?.name || '—',
+        pct: p.ownership_pct, dayIncome: dayData.income, dayExpense: dayData.expense,
+        dayProfit, dayShare, runningTotal: runningTotals[p.id], partnerId: p.id
+      });
+    });
+  });
 
   return (
     <div className="fade-in">
@@ -1524,12 +1573,14 @@ function Reports({ user }) {
             </div>
           </div>
 
-          {/* Partner Profit Shares */}
-          <div className="card">
-            <div className="section-title" style={{ color: '#16a34a', marginBottom: 14 }}>Partner Profit Distribution</div>
+          {/* Partner Monthly Profit Summary */}
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div className="section-title" style={{ color: '#16a34a' }}>Partner Profit Distribution — Monthly Total</div>
+            </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Partner</th><th>Branch</th><th>Ownership</th><th>Branch Profit</th><th>Profit Share</th></tr></thead>
+                <thead><tr><th>Partner</th><th>Branch</th><th>Ownership %</th><th>Branch Profit</th><th>Monthly Share</th></tr></thead>
                 <tbody>
                   {partnerShares.length === 0 && (
                     <tr><td colSpan={5} style={{ color: '#555', textAlign: 'center', padding: 20 }}>No active partners</td></tr>
@@ -1538,12 +1589,9 @@ function Reports({ user }) {
                     <tr key={p.id}>
                       <td style={{ fontWeight: 600 }}>{p.name}</td>
                       <td style={{ color: '#C9A84C' }}>{p.branchName}</td>
-                      <td style={{ color: '#16a34a' }}>{p.ownership_pct}%</td>
+                      <td style={{ color: '#16a34a', fontWeight: 700 }}>{p.ownership_pct}%</td>
                       <td className={p.branchProfit >= 0 ? 'text-profit' : 'text-expense'}>AED {fmt(p.branchProfit)}</td>
-                      <td style={{
-                        fontWeight: 700, fontFamily: "'Playfair Display', serif",
-                        color: p.share >= 0 ? '#16a34a' : '#D4614E'
-                      }}>
+                      <td style={{ fontWeight: 700, fontFamily: "'Playfair Display', serif", color: p.share >= 0 ? '#16a34a' : '#D4614E', fontSize: 16 }}>
                         AED {fmt(p.share)}
                       </td>
                     </tr>
@@ -1551,6 +1599,63 @@ function Reports({ user }) {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Day-by-Day Partner Profit Breakdown */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div className="section-title" style={{ color: '#4E8FA6' }}>Partner Profit — Day by Day Accumulation</div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowDailyPartner(!showDailyPartner)}>
+                {showDailyPartner ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showDailyPartner && (
+              partnerDailyRows.length === 0 ? (
+                <p className="text-muted" style={{ fontSize: 13 }}>No data for this period</p>
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Partner</th>
+                        <th>Branch</th>
+                        <th>Day Income</th>
+                        <th>Day Expense</th>
+                        <th>Day Profit</th>
+                        <th>Day Share ({'%'})</th>
+                        <th>Running Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partnerDailyRows.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap' }}>{row.date}</td>
+                          <td style={{ fontWeight: 600 }}>{row.partnerName}</td>
+                          <td style={{ color: '#C9A84C', fontSize: 13 }}>{row.branchName}</td>
+                          <td className="text-income">AED {fmt(row.dayIncome)}</td>
+                          <td className="text-expense">AED {fmt(row.dayExpense)}</td>
+                          <td className={row.dayProfit >= 0 ? 'text-profit' : 'text-expense'} style={{ fontWeight: 600 }}>
+                            AED {fmt(row.dayProfit)}
+                          </td>
+                          <td style={{ color: row.dayShare >= 0 ? '#16a34a' : '#D4614E', fontWeight: 600 }}>
+                            AED {fmt(row.dayShare)} <span style={{ color: '#555', fontSize: 11 }}>({row.pct}%)</span>
+                          </td>
+                          <td style={{ fontWeight: 700, fontFamily: "'Playfair Display', serif", color: row.runningTotal >= 0 ? '#4E8FA6' : '#D4614E' }}>
+                            AED {fmt(row.runningTotal)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+            {!showDailyPartner && (
+              <p style={{ fontSize: 13, color: '#555' }}>
+                Click "Show" to see how each partner's profit accumulates day by day throughout the month.
+              </p>
+            )}
           </div>
         </>
       )}
