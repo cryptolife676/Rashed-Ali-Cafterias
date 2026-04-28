@@ -209,23 +209,24 @@ const ROLE_LABELS = {
 
 const canAccess = (role, page) => {
   const access = {
-    super_admin: ['dashboard', 'branches', 'income', 'expenses', 'partners', 'users', 'reports'],
+    super_admin: ['dashboard', 'branches', 'income', 'expenses', 'partners', 'users', 'reports', 'portfolio'],
     manager:     ['dashboard', 'income', 'expenses', 'reports'],
     accountant:  ['dashboard', 'income', 'expenses', 'partners', 'reports'],
-    partner:     ['dashboard', 'partners', 'reports'],
+    partner:     ['dashboard', 'partners', 'reports', 'portfolio'],
     viewer:      ['dashboard'],
   };
   return (access[role] || []).includes(page);
 };
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: '⬛' },
-  { id: 'branches',  label: 'Branches',  icon: '🏪' },
-  { id: 'income',    label: 'Income',    icon: '📈' },
-  { id: 'expenses',  label: 'Expenses',  icon: '📉' },
-  { id: 'partners',  label: 'Partners',  icon: '🤝' },
-  { id: 'users',     label: 'Users',     icon: '👥' },
-  { id: 'reports',   label: 'Reports',   icon: '📊' },
+  { id: 'dashboard', label: 'Dashboard',  icon: '⬛' },
+  { id: 'branches',  label: 'Branches',   icon: '🏪' },
+  { id: 'income',    label: 'Income',     icon: '📈' },
+  { id: 'expenses',  label: 'Expenses',   icon: '📉' },
+  { id: 'partners',  label: 'Partners',   icon: '🤝' },
+  { id: 'portfolio', label: 'Portfolio',  icon: '💼' },
+  { id: 'users',     label: 'Users',      icon: '👥' },
+  { id: 'reports',   label: 'Reports',    icon: '📊' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -494,9 +495,17 @@ function Dashboard({ user }) {
   const [branches, setBranches] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     loadData();
+    // Realtime: auto-refresh whenever any income or expense entry changes
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'income_entries' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expense_entries' }, () => loadData())
+      .subscribe();
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const loadData = async () => {
@@ -507,7 +516,8 @@ function Dashboard({ user }) {
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const monthStr = now.toISOString().slice(0, 7);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
     const { data: incToday } = await supabase.from('income_entries').select('*').gte('entry_date', todayStr).lte('entry_date', todayStr);
     const { data: expToday } = await supabase.from('expense_entries').select('*').gte('entry_date', todayStr).lte('entry_date', todayStr);
@@ -526,6 +536,7 @@ function Dashboard({ user }) {
     (expMonth || []).forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].expMonth += Number(e.amount); });
 
     setStats(byBranch);
+    setLastUpdated(new Date());
     setLoading(false);
   };
 
@@ -538,6 +549,7 @@ function Dashboard({ user }) {
         <div>
           <div className="page-title">Dashboard</div>
           <div className="page-subtitle">Welcome back, {user.full_name} — {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+          {lastUpdated && <div style={{ fontSize: 11, color: '#444', marginTop: 2 }}>Last updated: {lastUpdated.toLocaleTimeString()}</div>}
         </div>
         <div style={{ marginLeft: 'auto' }}>
           <img src="/dashboard.png" alt="" style={{ height: 60, opacity: 0.6 }}
@@ -1384,9 +1396,10 @@ function Reports({ user }) {
   const [filterBranch, setFilterBranch] = useState('');
   const [filterMonth, setFilterMonth] = useState(thisMonth());
   const [loading, setLoading] = useState(true);
+  const [showDailyPartner, setShowDailyPartner] = useState(false);
 
   useEffect(() => { loadBranches(); }, []);
-  useEffect(() => { if (branches.length >= 0) loadReport(); }, [filterBranch, filterMonth]);
+  useEffect(() => { loadReport(); }, [filterBranch, filterMonth]);
 
   const loadBranches = async () => {
     const { data: b } = await supabase.from('branches').select('*');
@@ -1419,19 +1432,52 @@ function Reports({ user }) {
   const expByCategory = {};
   expenseData.forEach(e => { expByCategory[e.category] = (expByCategory[e.category] || 0) + Number(e.amount); });
 
-  // Per branch
+  // Per branch totals
   const byBranch = {};
   branches.forEach(b => { byBranch[b.id] = { name: b.name, income: 0, expense: 0 }; });
   incomeData.forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].income += Number(e.amount); });
   expenseData.forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].expense += Number(e.amount); });
 
-  // Partner shares
+  // Partner monthly shares
   const partnerShares = partners.map(p => {
-    const branchIncome = Object.values(byBranch).find((_, i) => Object.keys(byBranch)[i] === p.branch_id)?.income || 0;
     const branchProfit = (byBranch[p.branch_id]?.income || 0) - (byBranch[p.branch_id]?.expense || 0);
     const share = branchProfit * (Number(p.ownership_pct) / 100);
     return { ...p, branchProfit, share, branchName: byBranch[p.branch_id]?.name || '—' };
   }).filter(p => !filterBranch || p.branch_id === filterBranch);
+
+  // Day-by-day profit per branch
+  const dailyMap = {};
+  incomeData.forEach(e => {
+    if (!dailyMap[e.entry_date]) dailyMap[e.entry_date] = {};
+    if (!dailyMap[e.entry_date][e.branch_id]) dailyMap[e.entry_date][e.branch_id] = { income: 0, expense: 0 };
+    dailyMap[e.entry_date][e.branch_id].income += Number(e.amount);
+  });
+  expenseData.forEach(e => {
+    if (!dailyMap[e.entry_date]) dailyMap[e.entry_date] = {};
+    if (!dailyMap[e.entry_date][e.branch_id]) dailyMap[e.entry_date][e.branch_id] = { income: 0, expense: 0 };
+    dailyMap[e.entry_date][e.branch_id].expense += Number(e.amount);
+  });
+  const sortedDays = Object.keys(dailyMap).sort();
+
+  // Daily partner shares — running accumulation
+  const partnerDailyRows = [];
+  const runningTotals = {};
+  partners.filter(p => !filterBranch || p.branch_id === filterBranch).forEach(p => { runningTotals[p.id] = 0; });
+
+  sortedDays.forEach(date => {
+    partners.filter(p => !filterBranch || p.branch_id === filterBranch).forEach(p => {
+      const dayData = dailyMap[date]?.[p.branch_id];
+      if (!dayData) return;
+      const dayProfit = dayData.income - dayData.expense;
+      const dayShare = dayProfit * (Number(p.ownership_pct) / 100);
+      runningTotals[p.id] = (runningTotals[p.id] || 0) + dayShare;
+      partnerDailyRows.push({
+        date, partnerName: p.name, branchName: byBranch[p.branch_id]?.name || '—',
+        pct: p.ownership_pct, dayIncome: dayData.income, dayExpense: dayData.expense,
+        dayProfit, dayShare, runningTotal: runningTotals[p.id], partnerId: p.id
+      });
+    });
+  });
 
   return (
     <div className="fade-in">
@@ -1530,12 +1576,14 @@ function Reports({ user }) {
             </div>
           </div>
 
-          {/* Partner Profit Shares */}
-          <div className="card">
-            <div className="section-title" style={{ color: '#16a34a', marginBottom: 14 }}>Partner Profit Distribution</div>
+          {/* Partner Monthly Profit Summary */}
+          <div className="card" style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div className="section-title" style={{ color: '#16a34a' }}>Partner Profit Distribution — Monthly Total</div>
+            </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Partner</th><th>Branch</th><th>Ownership</th><th>Branch Profit</th><th>Profit Share</th></tr></thead>
+                <thead><tr><th>Partner</th><th>Branch</th><th>Ownership %</th><th>Branch Profit</th><th>Monthly Share</th></tr></thead>
                 <tbody>
                   {partnerShares.length === 0 && (
                     <tr><td colSpan={5} style={{ color: '#555', textAlign: 'center', padding: 20 }}>No active partners</td></tr>
@@ -1544,12 +1592,9 @@ function Reports({ user }) {
                     <tr key={p.id}>
                       <td style={{ fontWeight: 600 }}>{p.name}</td>
                       <td style={{ color: '#C9A84C' }}>{p.branchName}</td>
-                      <td style={{ color: '#16a34a' }}>{p.ownership_pct}%</td>
+                      <td style={{ color: '#16a34a', fontWeight: 700 }}>{p.ownership_pct}%</td>
                       <td className={p.branchProfit >= 0 ? 'text-profit' : 'text-expense'}>AED {fmt(p.branchProfit)}</td>
-                      <td style={{
-                        fontWeight: 700, fontFamily: "'Playfair Display', serif",
-                        color: p.share >= 0 ? '#16a34a' : '#D4614E'
-                      }}>
+                      <td style={{ fontWeight: 700, fontFamily: "'Playfair Display', serif", color: p.share >= 0 ? '#16a34a' : '#D4614E', fontSize: 16 }}>
                         AED {fmt(p.share)}
                       </td>
                     </tr>
@@ -1558,8 +1603,476 @@ function Reports({ user }) {
               </table>
             </div>
           </div>
+
+          {/* Day-by-Day Partner Profit Breakdown */}
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div className="section-title" style={{ color: '#4E8FA6' }}>Partner Profit — Day by Day Accumulation</div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowDailyPartner(!showDailyPartner)}>
+                {showDailyPartner ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {showDailyPartner && (
+              partnerDailyRows.length === 0 ? (
+                <p className="text-muted" style={{ fontSize: 13 }}>No data for this period</p>
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Partner</th>
+                        <th>Branch</th>
+                        <th>Day Income</th>
+                        <th>Day Expense</th>
+                        <th>Day Profit</th>
+                        <th>Day Share ({'%'})</th>
+                        <th>Running Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partnerDailyRows.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap' }}>{row.date}</td>
+                          <td style={{ fontWeight: 600 }}>{row.partnerName}</td>
+                          <td style={{ color: '#C9A84C', fontSize: 13 }}>{row.branchName}</td>
+                          <td className="text-income">AED {fmt(row.dayIncome)}</td>
+                          <td className="text-expense">AED {fmt(row.dayExpense)}</td>
+                          <td className={row.dayProfit >= 0 ? 'text-profit' : 'text-expense'} style={{ fontWeight: 600 }}>
+                            AED {fmt(row.dayProfit)}
+                          </td>
+                          <td style={{ color: row.dayShare >= 0 ? '#16a34a' : '#D4614E', fontWeight: 600 }}>
+                            AED {fmt(row.dayShare)} <span style={{ color: '#555', fontSize: 11 }}>({row.pct}%)</span>
+                          </td>
+                          <td style={{ fontWeight: 700, fontFamily: "'Playfair Display', serif", color: row.runningTotal >= 0 ? '#4E8FA6' : '#D4614E' }}>
+                            AED {fmt(row.runningTotal)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+            {!showDailyPartner && (
+              <p style={{ fontSize: 13, color: '#555' }}>
+                Click "Show" to see how each partner's profit accumulates day by day throughout the month.
+              </p>
+            )}
+          </div>
         </>
       )}
+    </div>
+  );
+}
+
+
+// ─── Portfolio ────────────────────────────────────────────────────────────────
+function Portfolio({ user }) {
+  const [partners, setPartners] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPartner, setSelectedPartner] = useState(null);
+  const [monthlyData, setMonthlyData] = useState({});
+  const [filterMonth, setFilterMonth] = useState(thisMonth());
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (partners.length) loadMonthlyProfits(); }, [partners, filterMonth]);
+
+  const loadAll = async () => {
+    setLoading(true);
+    const { data: b } = await supabase.from('branches').select('*');
+    setBranches(b || []);
+
+    let q = supabase.from('partners').select('*, branches(name), users(full_name, email)').eq('is_active', true);
+    // Partner role: only see own record (matched by user_id)
+    if (user.role === 'partner') q = q.eq('user_id', user.id);
+    const { data: p } = await q;
+    setPartners(p || []);
+    if (p && p.length === 1 && user.role === 'partner') setSelectedPartner(p[0]);
+    setLoading(false);
+  };
+
+  const loadMonthlyProfits = async () => {
+    const [rYear, rMon] = filterMonth.split('-').map(Number);
+    const start = new Date(rYear, rMon - 1, 1).toISOString().split('T')[0];
+    const end = new Date(rYear, rMon, 0).toISOString().split('T')[0];
+
+    const branchIds = [...new Set(partners.map(p => p.branch_id).filter(Boolean))];
+    if (!branchIds.length) return;
+
+    const [{ data: inc }, { data: exp }] = await Promise.all([
+      supabase.from('income_entries').select('branch_id, amount').gte('entry_date', start).lte('entry_date', end).in('branch_id', branchIds),
+      supabase.from('expense_entries').select('branch_id, amount').gte('entry_date', start).lte('entry_date', end).in('branch_id', branchIds),
+    ]);
+
+    const byBranch = {};
+    branchIds.forEach(id => { byBranch[id] = { income: 0, expense: 0 }; });
+    (inc || []).forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].income += Number(e.amount); });
+    (exp || []).forEach(e => { if (byBranch[e.branch_id]) byBranch[e.branch_id].expense += Number(e.amount); });
+    setMonthlyData(byBranch);
+  };
+
+  const uploadPhoto = async (partnerId, file) => {
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { setUploadError('Photo must be under 3MB'); return; }
+    if (!file.type.startsWith('image/')) { setUploadError('Only image files allowed'); return; }
+    setUploading(true); setUploadError('');
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `partners/${partnerId}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('partner-photos').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: urlData } = supabase.storage.from('partner-photos').getPublicUrl(path);
+      const photoUrl = urlData.publicUrl + '?t=' + Date.now();
+      await supabase.from('partners').update({ photo_url: photoUrl }).eq('id', partnerId);
+      setSuccess('Photo updated successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+      loadAll();
+    } catch (err) {
+      setUploadError('Upload failed: ' + (err.message || 'unknown error'));
+    }
+    setUploading(false);
+  };
+
+  const removePhoto = async (partnerId) => {
+    await supabase.from('partners').update({ photo_url: null }).eq('id', partnerId);
+    loadAll();
+  };
+
+  const getPartnerStats = (p) => {
+    const branchData = monthlyData[p.branch_id] || { income: 0, expense: 0 };
+    const branchProfit = branchData.income - branchData.expense;
+    const myShare = branchProfit * (Number(p.ownership_pct) / 100);
+    return { branchIncome: branchData.income, branchExpense: branchData.expense, branchProfit, myShare };
+  };
+
+  // Full portfolio detail view
+  const PartnerDetail = ({ p, onBack }) => {
+    const stats = getPartnerStats(p);
+    const fileRef = React.useRef();
+
+    // Last 6 months data
+    const [history, setHistory] = useState([]);
+    useEffect(() => { loadHistory(); }, [p.id]);
+
+    const loadHistory = async () => {
+      const rows = [];
+      for (let i = 0; i < 6; i++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        const start = new Date(y, m, 1).toISOString().split('T')[0];
+        const end = new Date(y, m + 1, 0).toISOString().split('T')[0];
+        const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        const [{ data: inc }, { data: exp }] = await Promise.all([
+          supabase.from('income_entries').select('amount').eq('branch_id', p.branch_id).gte('entry_date', start).lte('entry_date', end),
+          supabase.from('expense_entries').select('amount').eq('branch_id', p.branch_id).gte('entry_date', start).lte('entry_date', end),
+        ]);
+        const income = (inc || []).reduce((s, e) => s + Number(e.amount), 0);
+        const expense = (exp || []).reduce((s, e) => s + Number(e.amount), 0);
+        const profit = income - expense;
+        const share = profit * (Number(p.ownership_pct) / 100);
+        rows.push({ label, income, expense, profit, share, month: start.slice(0, 7) });
+      }
+      setHistory(rows.reverse());
+    };
+
+    return (
+      <div className="fade-in">
+        {user.role === 'super_admin' && (
+          <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 20 }}>
+            ← Back to All Partners
+          </button>
+        )}
+
+        {/* Profile Card */}
+        <div className="card card-gold" style={{ marginBottom: 20, display: 'flex', gap: 28, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* Photo */}
+          <div style={{ textAlign: 'center', minWidth: 130 }}>
+            <div style={{
+              width: 120, height: 120, borderRadius: '50%', overflow: 'hidden',
+              border: '3px solid #C9A84C44', background: '#111',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 10px', cursor: 'pointer', position: 'relative'
+            }}
+              onClick={() => (user.role === 'super_admin' || p.user_id === user.id) && fileRef.current?.click()}
+              title="Click to change photo"
+            >
+              {p.photo_url ? (
+                <img src={p.photo_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ fontSize: 40, color: '#C9A84C' }}>{p.name[0].toUpperCase()}</div>
+              )}
+              {(user.role === 'super_admin' || p.user_id === user.id) && (
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  background: '#00000099', color: '#fff', fontSize: 10,
+                  padding: '4px', textAlign: 'center', opacity: 0
+                }}
+                  className="photo-overlay"
+                >
+                  📷 Change
+                </div>
+              )}
+            </div>
+            <style>{`.photo-overlay { opacity: 0 !important; } div:hover > .photo-overlay { opacity: 1 !important; }`}</style>
+            {(user.role === 'super_admin' || p.user_id === user.id) && (
+              <>
+                <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                  onChange={e => e.target.files[0] && uploadPhoto(p.id, e.target.files[0])} />
+                <button className="btn btn-ghost btn-sm" style={{ marginTop: 6, fontSize: 11 }}
+                  onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  {uploading ? 'Uploading…' : '📷 Upload Photo'}
+                </button>
+                {p.photo_url && (
+                  <button className="btn btn-danger btn-sm" style={{ marginTop: 4, fontSize: 11 }}
+                    onClick={() => removePhoto(p.id)}>
+                    Remove
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 24, fontWeight: 700, color: '#E8E0D0', marginBottom: 4 }}>
+              {p.name}
+            </div>
+            <div style={{ fontSize: 13, color: '#666', marginBottom: 12 }}>
+              {p.users ? `${p.users.email}` : 'No linked account'}
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              <div className="chip" style={{ borderColor: '#C9A84C44', color: '#C9A84C' }}>
+                🏪 {p.branches?.name || '—'}
+              </div>
+              <div className="chip" style={{ borderColor: '#16a34a44', color: '#4ade80' }}>
+                📊 {p.ownership_pct}% Ownership
+              </div>
+              <div className={`chip ${p.is_active ? '' : ''}`} style={{
+                borderColor: p.is_active ? '#16a34a44' : '#55555544',
+                color: p.is_active ? '#4ade80' : '#888'
+              }}>
+                {p.is_active ? '✅ Active' : '⏸ Inactive'}
+              </div>
+            </div>
+          </div>
+
+          {/* This Month Quick Stats */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 180 }}>
+            <div style={{ fontSize: 11, color: '#555', textTransform: 'uppercase', letterSpacing: 1 }}>
+              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            </div>
+            <div style={{ background: '#111', borderRadius: 10, padding: '12px 16px', border: '1px solid #16a34a33' }}>
+              <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>MY PROFIT SHARE</div>
+              <div style={{
+                fontFamily: "'Playfair Display', serif", fontSize: 22, fontWeight: 700,
+                color: stats.myShare >= 0 ? '#16a34a' : '#D4614E'
+              }}>
+                AED {fmt(stats.myShare)}
+              </div>
+            </div>
+            <div style={{ background: '#111', borderRadius: 10, padding: '10px 16px', border: '1px solid #C9A84C22' }}>
+              <div style={{ fontSize: 11, color: '#666', marginBottom: 2 }}>BRANCH PROFIT</div>
+              <div style={{ fontWeight: 700, color: stats.branchProfit >= 0 ? '#4E8FA6' : '#D4614E' }}>
+                AED {fmt(stats.branchProfit)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {uploadError && <Alert type="error" onClose={() => setUploadError('')}>{uploadError}</Alert>}
+        {success && <Alert type="success" onClose={() => setSuccess('')}>{success}</Alert>}
+
+        {/* Month Filter */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+          <div style={{ fontSize: 13, color: '#666' }}>View month:</div>
+          <input className="input" type="month" style={{ width: 'auto' }}
+            value={filterMonth} onChange={e => setFilterMonth(e.target.value)} />
+        </div>
+
+        {/* Selected Month Stats */}
+        <div className="grid-3" style={{ marginBottom: 20 }}>
+          <div className="stat-card" style={{ borderColor: '#6BAA7544' }}>
+            <div className="stat-label">Branch Income</div>
+            <div className="stat-value text-income">AED {fmt(stats.branchIncome)}</div>
+          </div>
+          <div className="stat-card" style={{ borderColor: '#D4614E44' }}>
+            <div className="stat-label">Branch Expenses</div>
+            <div className="stat-value text-expense">AED {fmt(stats.branchExpense)}</div>
+          </div>
+          <div className="stat-card" style={{ borderColor: '#16a34a44' }}>
+            <div className="stat-label">My Share ({p.ownership_pct}%)</div>
+            <div className="stat-value" style={{ color: stats.myShare >= 0 ? '#16a34a' : '#D4614E' }}>
+              AED {fmt(stats.myShare)}
+            </div>
+          </div>
+        </div>
+
+        {/* 6-Month History */}
+        <div className="card">
+          <div className="section-title" style={{ color: '#C9A84C', marginBottom: 16 }}>
+            6-Month Profit History
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Branch Income</th>
+                  <th>Branch Expenses</th>
+                  <th>Branch Profit</th>
+                  <th>My Share ({p.ownership_pct}%)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.length === 0 && (
+                  <tr><td colSpan={5} style={{ textAlign: 'center', color: '#555', padding: 20 }}>Loading history…</td></tr>
+                )}
+                {history.map((row, i) => (
+                  <tr key={i} style={{ background: row.month === filterMonth ? '#C9A84C0A' : '' }}>
+                    <td style={{ fontWeight: row.month === filterMonth ? 700 : 400, color: row.month === filterMonth ? '#C9A84C' : '#888' }}>
+                      {row.label} {row.month === filterMonth && '←'}
+                    </td>
+                    <td className="text-income">AED {fmt(row.income)}</td>
+                    <td className="text-expense">AED {fmt(row.expense)}</td>
+                    <td className={row.profit >= 0 ? 'text-profit' : 'text-expense'} style={{ fontWeight: 600 }}>
+                      AED {fmt(row.profit)}
+                    </td>
+                    <td style={{
+                      fontWeight: 700, fontFamily: "'Playfair Display', serif",
+                      color: row.share >= 0 ? '#16a34a' : '#D4614E', fontSize: 15
+                    }}>
+                      AED {fmt(row.share)}
+                    </td>
+                  </tr>
+                ))}
+                {history.length > 0 && (
+                  <tr style={{ borderTop: '2px solid #2A2A2A' }}>
+                    <td style={{ fontWeight: 700, color: '#C9A84C' }}>6-Month Total</td>
+                    <td className="text-income" style={{ fontWeight: 700 }}>AED {fmt(history.reduce((s, r) => s + r.income, 0))}</td>
+                    <td className="text-expense" style={{ fontWeight: 700 }}>AED {fmt(history.reduce((s, r) => s + r.expense, 0))}</td>
+                    <td className="text-profit" style={{ fontWeight: 700 }}>AED {fmt(history.reduce((s, r) => s + r.profit, 0))}</td>
+                    <td style={{ fontWeight: 700, fontFamily: "'Playfair Display', serif", color: '#16a34a', fontSize: 16 }}>
+                      AED {fmt(history.reduce((s, r) => s + r.share, 0))}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) return <Loading />;
+
+  // Partner role: goes straight to their own detail
+  if (user.role === 'partner') {
+    if (partners.length === 0) return (
+      <div className="card">
+        <p className="text-muted">No partner record linked to your account. Please contact the admin.</p>
+      </div>
+    );
+    return (
+      <div className="fade-in">
+        <div className="page-title" style={{ marginBottom: 6 }}>My Portfolio</div>
+        <div className="page-subtitle" style={{ marginBottom: 24 }}>Your personal profit & ownership summary</div>
+        <PartnerDetail p={partners[0]} onBack={() => {}} />
+      </div>
+    );
+  }
+
+  // Super admin: show all partners as cards, click to drill in
+  if (selectedPartner) {
+    return (
+      <div className="fade-in">
+        <div className="page-title" style={{ marginBottom: 6 }}>Partner Portfolio</div>
+        <div className="page-subtitle" style={{ marginBottom: 24 }}>Viewing: {selectedPartner.name}</div>
+        <PartnerDetail p={selectedPartner} onBack={() => setSelectedPartner(null)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="fade-in">
+      <div className="page-title" style={{ marginBottom: 6 }}>Partner Portfolios</div>
+      <div className="page-subtitle" style={{ marginBottom: 8 }}>Click any partner to view their full portfolio</div>
+
+      {/* Month filter for overview */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'center' }}>
+        <div style={{ fontSize: 13, color: '#666' }}>Overview month:</div>
+        <input className="input" type="month" style={{ width: 'auto' }}
+          value={filterMonth} onChange={e => setFilterMonth(e.target.value)} />
+      </div>
+
+      {partners.length === 0 && (
+        <div className="card">
+          <p className="text-muted">No active partners found. Add partners first.</p>
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        {partners.map(p => {
+          const stats = getPartnerStats(p);
+          return (
+            <div key={p.id} className="card card-gold"
+              style={{ cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }}
+              onClick={() => setSelectedPartner(p)}
+              onMouseEnter={e => e.currentTarget.style.borderColor = '#C9A84C88'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = '#C9A84C33'}
+            >
+              {/* Photo + Name */}
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 16 }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: '50%', overflow: 'hidden',
+                  border: '2px solid #C9A84C44', background: '#111', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  {p.photo_url ? (
+                    <img src={p.photo_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ fontSize: 22, color: '#C9A84C' }}>{p.name[0].toUpperCase()}</div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: '#E8E0D0' }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: '#666' }}>{p.branches?.name || '—'}</div>
+                  <div style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>{p.ownership_pct}% ownership</div>
+                </div>
+              </div>
+
+              <hr className="divider" style={{ margin: '0 0 14px' }} />
+
+              {/* Stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ background: '#111', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 10, color: '#555', marginBottom: 3 }}>BRANCH PROFIT</div>
+                  <div style={{ fontWeight: 700, color: stats.branchProfit >= 0 ? '#4E8FA6' : '#D4614E', fontSize: 13 }}>
+                    AED {fmt(stats.branchProfit)}
+                  </div>
+                </div>
+                <div style={{ background: '#111', borderRadius: 8, padding: '10px 12px', border: '1px solid #16a34a22' }}>
+                  <div style={{ fontSize: 10, color: '#555', marginBottom: 3 }}>MY SHARE</div>
+                  <div style={{ fontWeight: 700, color: stats.myShare >= 0 ? '#16a34a' : '#D4614E', fontSize: 13 }}>
+                    AED {fmt(stats.myShare)}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 12, fontSize: 12, color: '#444', textAlign: 'right' }}>
+                Tap to view full portfolio →
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1617,6 +2130,7 @@ export default function App() {
       case 'income':    return <EntriesPage user={session} type="income" />;
       case 'expenses':  return <EntriesPage user={session} type="expenses" />;
       case 'partners':  return <Partners user={session} />;
+      case 'portfolio': return <Portfolio user={session} />;
       case 'users':     return <Users user={session} />;
       case 'reports':   return <Reports user={session} />;
       default:          return <Dashboard user={session} />;
