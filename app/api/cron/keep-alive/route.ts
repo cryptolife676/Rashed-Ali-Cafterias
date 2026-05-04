@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isAuthorizedCron } from '@/lib/auth/cron';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-function authorized(req: Request) {
-  const auth = req.headers.get('authorization');
-  return auth === `Bearer ${process.env.CRON_SECRET}`;
-}
-
 export async function GET(req: Request) {
-  if (!authorized(req)) {
+  if (!isAuthorizedCron(req)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
 

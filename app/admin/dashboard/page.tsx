@@ -10,16 +10,24 @@ export default async function DashboardPage() {
   const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
   const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-  const { data: pnl } = await supabase
-    .rpc('compute_period_pnl', { p_branch: null, p_start: start, p_end: end })
-    .single<{ income: number; expenses: number; net_profit: number }>();
-
-  // v_monthly_pnl groups by (month, branch_id) — aggregate across all branches here
-  const { data: rawMonthly } = await supabase
-    .from('v_monthly_pnl')
-    .select('month, income, expenses, net_profit')
-    .order('month', { ascending: false })
-    .limit(60); // fetch more rows to cover multi-branch months, then collapse
+  const [
+    { data: pnl },
+    { data: rawMonthly },
+    { count: shCount },
+  ] = await Promise.all([
+    supabase
+      .rpc('compute_period_pnl', { p_branch: null, p_start: start, p_end: end })
+      .single<{ income: number; expenses: number; net_profit: number }>(),
+    supabase
+      .from('v_monthly_pnl')
+      .select('month, income, expenses, net_profit')
+      .order('month', { ascending: false })
+      .limit(60),
+    supabase
+      .from('shareholders')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
+  ]);
 
   // Sum across branches per month, keep last 12 distinct months
   const monthMap = new Map<string, { income: number; expenses: number; net_profit: number }>();
@@ -36,11 +44,6 @@ export default async function DashboardPage() {
     .sort(([a], [b]) => b.localeCompare(a))
     .slice(0, 12)
     .map(([month, totals]) => ({ month, ...totals }));
-
-  const { count: shCount } = await supabase
-    .from('shareholders')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true);
 
   return (
     <div className="space-y-6">
@@ -66,7 +69,7 @@ export default async function DashboardPage() {
           <tbody>
             {monthly.map((m) => (
               <tr key={m.month}>
-                <td>{new Date(m.month + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</td>
+                <td>{new Date(m.month + 'T00:00:00Z').toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
                 <td className="text-right tabular-nums">{formatMoney(m.income)}</td>
                 <td className="text-right tabular-nums">{formatMoney(m.expenses)}</td>
                 <td className={`text-right tabular-nums font-medium ${m.net_profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>

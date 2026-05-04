@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 
+export const revalidate = 60;
+
 export default async function InactivityBanner() {
   const supabase = await createClient();
   const { data: act } = await supabase

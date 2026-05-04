@@ -8,6 +8,7 @@ export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') ?? '/';
+  const pendingApproval = params.get('error') === 'pending_approval';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState<string | null>(null);
@@ -52,6 +53,11 @@ export default function LoginForm() {
         <h1 className="text-xl font-semibold">Sign in</h1>
         <p className="text-sm text-slate-500">Rashed Ali Cafeteria</p>
       </div>
+      {pendingApproval && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Your account is pending admin approval. Contact your administrator to get access.
+        </div>
+      )}
       <div>
         <label className="label">Email</label>
         <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />

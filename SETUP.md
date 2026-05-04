@@ -38,7 +38,7 @@ middleware.ts                            # auth gate
 - `super_admin`, `admin` — full access (admin panel)
 - `accountant` — can edit transactions only
 - `shareholder` — can read own portfolio
-- `viewer` — default for new signups (read-only)
+- `viewer` — default role for new sign-ups, but profile starts **inactive** until an admin promotes them. Inactive users have no DB read access via RLS.
 
 ### Reliability features
 - **Keep-alive**: `/api/cron/keep-alive` runs every 2 days, inserts a row into `keep_alive_logs` and updates `system_activity.last_keep_alive`. A real WRITE — Supabase counts this as activity.
@@ -74,11 +74,14 @@ npm run dev
 
 ## 3. Database setup
 
-**Important:** the old schema was wiped per migration plan. Run the new migration in Supabase SQL editor:
+Run the migrations in Supabase SQL editor in order:
 
 1. Open Supabase dashboard → SQL editor
-2. Paste contents of `supabase/migrations/0001_init.sql` and run
-3. (Optional) regenerate types: `npm run db:types`
+2. Paste and run `supabase/migrations/0001_init.sql`
+3. Paste and run `supabase/migrations/0002_seed_data.sql`
+4. Paste and run `supabase/migrations/0003_security_and_correctness.sql`
+5. Paste and run `supabase/migrations/0004_atomic_run_and_rls.sql`
+6. (Optional) regenerate types: `npm run db:types`
 
 Then create your first admin:
 
@@ -171,11 +174,3 @@ These are all small additions — the hard parts (schema, RLS, distribution engi
 
 ---
 
-## 8. Removing the old Vite app
-
-Once you've verified the Next.js app works end-to-end:
-
-```bash
-rm -rf src/ index.html vite.config.js database.sql
-```
-And remove `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` from your environment.

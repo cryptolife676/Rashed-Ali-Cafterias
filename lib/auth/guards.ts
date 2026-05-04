@@ -31,7 +31,8 @@ export async function getCurrentUser(): Promise<AuthedUser | null> {
 
 export async function requireUser() {
   const u = await getCurrentUser();
-  if (!u || !u.isActive) redirect('/login');
+  if (!u) redirect('/login');
+  if (!u.isActive) redirect('/login?error=pending_approval');
   return u;
 }
 
