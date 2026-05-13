@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; padding: 20px; display: flex; gap: 12px; align-items: flex-start; }
+
+  /* spacing scale */
+  .scale { display: flex; flex-direction: column; gap: 6px; }
+  .item { display: flex; align-items: center; gap: 10px; }
+  .bar { background: #1f63e0; border-radius: 3px; height: 18px; }
+  .meta { font-size: 11px; color: #64748b; white-space: nowrap; }
+  .val { font-size: 11px; font-weight: 600; color: #0f172a; width: 36px; }
+
+  /* radius */
+  .radii { display: flex; gap: 10px; align-items: flex-end; margin-left: 40px; }
+  .rbox { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .r { background: #e2e8f0; border: 2px solid #cbd5e1; width: 44px; height: 44px; }
+  .rlabel { font-size: 10px; color: #64748b; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="scale">
+    <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Spacing Scale</div>
+    <div class="item"><div class="bar" style="width:4px"></div><span class="val">1</span><span class="meta">4px · xs</span></div>
+    <div class="item"><div class="bar" style="width:8px"></div><span class="val">2</span><span class="meta">8px · sm</span></div>
+    <div class="item"><div class="bar" style="width:12px"></div><span class="val">3</span><span class="meta">12px</span></div>
+    <div class="item"><div class="bar" style="width:16px"></div><span class="val">4</span><span class="meta">16px · gap-4</span></div>
+    <div class="item"><div class="bar" style="width:20px"></div><span class="val">5</span><span class="meta">20px · p-5</span></div>
+    <div class="item"><div class="bar" style="width:24px"></div><span class="val">6</span><span class="meta">24px · space-y-6</span></div>
+    <div class="item"><div class="bar" style="width:32px"></div><span class="val">8</span><span class="meta">32px</span></div>
+    <div class="item"><div class="bar" style="width:48px"></div><span class="val">12</span><span class="meta">48px</span></div>
+    <div class="item"><div class="bar" style="width:64px"></div><span class="val">16</span><span class="meta">64px</span></div>
+  </div>
+
+  <div class="radii">
+    <div style="font-size:10px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;writing-mode:vertical-lr;transform:rotate(180deg)">Radii</div>
+    <div class="rbox"><div class="r" style="border-radius:4px"></div><div class="rlabel">4px<br>badge</div></div>
+    <div class="rbox"><div class="r" style="border-radius:6px"></div><div class="rlabel">6px<br>sm</div></div>
+    <div class="rbox"><div class="r" style="border-radius:8px"></div><div class="rlabel">8px<br>btn/input</div></div>
+    <div class="rbox"><div class="r" style="border-radius:12px"></div><div class="rlabel">12px<br>card</div></div>
+    <div class="rbox"><div class="r" style="border-radius:16px"></div><div class="rlabel">16px<br>xl</div></div>
+    <div class="rbox"><div class="r" style="border-radius:999px"></div><div class="rlabel">full<br>pill</div></div>
+  </div>
+</body>
+</html>

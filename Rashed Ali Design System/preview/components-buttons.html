@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; padding: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all .15s; font-family: inherit; gap: 6px; }
+  .btn-primary { background: #1f63e0; color: #fff; }
+  .btn-primary:hover { background: #1a4fb3; }
+  .btn-secondary { background: #f1f5f9; color: #1e293b; }
+  .btn-secondary:hover { background: #e2e8f0; }
+  .btn-danger { background: #dc2626; color: #fff; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-ghost { background: transparent; color: #1f63e0; border: 1px solid #d9ecff; }
+  .btn-ghost:hover { background: #eef7ff; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .row { width: 100%; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .divider { width: 100%; border: none; border-top: 1px solid #e2e8f0; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <button class="btn btn-primary">Sign In</button>
+    <button class="btn btn-primary" disabled>Saving…</button>
+    <button class="btn btn-secondary">Cancel</button>
+    <button class="btn btn-danger">Delete</button>
+    <button class="btn btn-ghost">View Report</button>
+  </div>
+  <hr class="divider">
+  <!-- sm size -->
+  <div class="row">
+    <button class="btn btn-primary" style="font-size:12px;padding:5px 12px">Small</button>
+    <button class="btn btn-secondary" style="font-size:12px;padding:5px 12px">Small</button>
+    <button class="btn btn-danger" style="font-size:12px;padding:5px 12px">Delete</button>
+  </div>
+</body>
+</html>

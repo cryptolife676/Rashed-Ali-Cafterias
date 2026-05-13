@@ -1,0 +1,53 @@
+Build me a complete multi-branch cafeteria financial management web app from scratch using React + Vite + Supabase + Vercel. Here are all the requirements:
+BUSINESS NAME: Rashed Ali Cafeterias — Rashed Ali راشد علي (green color `#16a34a` in sidebar )
+TECH STACK:
+* React + Vite (no TypeScript)
+* Supabase (database + auth using custom users table, NOT Supabase Auth)
+* Deployed on Vercel via GitHub
+* Single file: src/App.jsx
+* No external libraries except what comes with Vite. Use Web Crypto API for password hashing (PBKDF2), not bcryptjs
+LOGIN & SESSION:
+* Custom login using email + password stored in users table
+* Passwords hashed with Web Crypto API (PBKDF2), auto-upgrade plain text on first login
+* Session stored in localStorage so user stays logged in after page refresh
+* Never store password hash in localStorage
+DATABASE TABLES (Supabase):
+1. `branches` — id, name, location, is_active, created_at
+2. `users` — id, full_name, email, password_hash, role, is_active, last_login, created_at
+3. `income_entries` — id, branch_id, entry_date, amount, category, notes, recorded_by, created_at
+4. `expense_entries` — id, branch_id, entry_date, amount, category, notes, recorded_by, created_at
+5. `partners` — id, name, branch_id, ownership_pct, user_id (nullable, link later), is_active, created_at
+USER ROLES:
+* super_admin: sees everything, can manage users/partners/branches
+* manager: dashboard, income, expenses, reports
+* accountant: dashboard, income, expenses, partners, reports
+* partner: dashboard, partners, reports
+* viewer: dashboard only
+FEATURES:
+1. Login page — logo (/logo.png), راشد علي in green, stays logged in after refresh
+2. Sidebar — image, "Rashed Ali راشد علي" in green (`#16a34a`), "Cafeterias كافتيريا" in white, 280px wide
+3. Dashboard — today's and this month's income/expenses/profit per branch
+4. Branches — add/edit/delete/activate branches (super_admin only)
+5. Income — add/delete entries with date, amount, category, notes per branch
+6. Expenses — add/delete entries with date, amount, category, notes per branch
+7. Partners —Partners should be added by name only, without requiring an email address at the time of creation. Each partner record must include the following fields: partner name, assigned branch, and ownership percentage (%). The system must strictly enforce that the total ownership for any branch does not exceed 100%. When adding a new partner, the system should automatically calculate the total allocated percentage for that branch and prevent saving if the entered percentage exceeds the remaining available share. If the limit is exceeded, a clear warning message should appear, such as: “Cannot exceed 100% total ownership. Only X% remaining for this branch.” Additionally, the interface should display a live summary below the form showing the total allocated percentage and the remaining share, updating dynamically whenever partners are added, edited, or deleted. At a later stage, a Super Admin should be able to click “Link User” to connect a partner record to an existing user account. The system must also allow editing, deleting, and activating or deactivating partner records.
+8. Users — add/edit/delete/deactivate users. Change any user's password (super_admin , and that user only). Password hashed on save
+9. Reports — monthly income/expenses/profit by branch with category breakdown and partner profit shares. 10. IMAGES AND LOGOS: During the website design, images should be properly integrated from the public folder using the `.png` files. The Login page must display the main logo (`/logo.png`). The Sidebar should also include an image (brand logo or related graphic), and the Dashboard should feature an additional image for visual branding. Additionally, a cup with mixed coffee logo must be set as the browser favicon so that it appears as the window/tab icon when typing the site address or while the page is loading.
+SECURITY:
+* Passwords hashed with PBKDF2 (Web Crypto API), never plain text
+* Password hash never stored in localStorage
+* Only super_admin can access Users page
+* RLS disabled in Supabase (handled in app logic)
+DESIGN: 
+* Dark theme: background `#0D0D0D`, sidebar `#1A1A1A`, cards `#1A1A1A`
+* Gold accents: `#C9A84C`
+* Green for income: `#6BAA75`
+* Red for expenses: `#D4614E`
+* Blue for profit: `#4E8FA6`
+* Partner/brand green: `#16a34a`
+* All in one single App.jsx file. , 
+DELIVERABLES:
+1. Complete src/App.jsx (single file, no imports except React and supabaseClient)
+2. src/supabaseClient.js., 3. src/main.jsx
+3. SQL script to create all 5 tables
+4. Step by step setup instructions: Supabase → GitHub → Vercel

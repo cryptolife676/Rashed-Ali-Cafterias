@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; gap: 10px; align-items: flex-start; }
+  .label { font-size: 10px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+
+  /* shadows */
+  .sbox { background: #fff; border-radius: 10px; padding: 14px 18px; font-size: 12px; color: #334155; font-weight: 500; width: 140px; text-align: center; }
+  .s-sm  { box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); border: 1px solid #e2e8f0; }
+  .s-md  { box-shadow: 0 4px 6px -1px rgb(0 0 0 / .07), 0 2px 4px -2px rgb(0 0 0 / .05); }
+  .s-lg  { box-shadow: 0 10px 15px -3px rgb(0 0 0 / .08), 0 4px 6px -4px rgb(0 0 0 / .05); }
+  .s-gold { box-shadow: 0 4px 24px 0 rgb(201 162 39 / .22); background: #1a1814; color: #c9a227; }
+</style>
+</head>
+<body>
+  <div class="label">Shadow System</div>
+  <div class="row">
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">shadow-sm — cards, inputs</div>
+      <div class="sbox s-sm">shadow-sm</div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">shadow-md — dropdowns</div>
+      <div class="sbox s-md">shadow-md</div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">shadow-lg — modals</div>
+      <div class="sbox s-lg">shadow-lg</div>
+    </div>
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:6px">shadow-gold — brand</div>
+      <div class="sbox s-gold">gold glow</div>
+    </div>
+  </div>
+</body>
+</html>

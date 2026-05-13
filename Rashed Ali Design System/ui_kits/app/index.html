@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cafeteria HQ — UI Kit</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f8fafc; color: #0f172a; -webkit-font-smoothing: antialiased; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+/* ─── Icon helper — inline SVG paths ──────────── */
+const ICON_PATHS = {
+  LayoutDashboard: 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z;M9 22V12h6v10',
+  Receipt: 'M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z;M9 7h6;M9 11h6;M9 15h4',
+  Users: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2;M23 21v-2a4 4 0 0 0-3-3.87;M16 3.13a4 4 0 0 1 0 7.75;M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  BadgeDollarSign: 'M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z;M12 6v2;M12 16v2;M8.5 9.5a3.5 3.5 0 0 1 7 0c0 1.93-1.57 2.8-3.5 3.5-1.93.7-3.5 1.57-3.5 3.5a3.5 3.5 0 0 0 7 0',
+  FileText: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z;M14 2v6h6;M16 13H8;M16 17H8;M10 9H8',
+  ScrollText: 'M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4;M19 17H9;M15 13H9;M15 9H9',
+  Plus: 'M12 5v14;M5 12h14',
+};
+
+function Icon({ name, size = 16, color = 'currentColor' }) {
+  const d = ICON_PATHS[name];
+  if (!d) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ display:'inline-block', flexShrink:0 }}
+      dangerouslySetInnerHTML={{ __html: d.split(';').map(p => `<path d="${p}"/>`).join('') }}
+    />
+  );
+}
+
+/* ─── Mock data ────────────────────────────────── */
+const MONTHLY = [
+  { month: 'Apr 2025', income: 24500, expenses: 18200, net: 6300 },
+  { month: 'Mar 2025', income: 22100, expenses: 16800, net: 5300 },
+  { month: 'Feb 2025', income: 19800, expenses: 15900, net: 3900 },
+  { month: 'Jan 2025', income: 21200, expenses: 17400, net: 3800 },
+  { month: 'Dec 2024', income: 28500, expenses: 20100, net: 8400 },
+  { month: 'Nov 2024', income: 23000, expenses: 17500, net: 5500 },
+];
+
+const TRANSACTIONS = [
+  { id:1, date:'12 Apr 2025', kind:'income',  cat:'Food Sales',  branch:'Main',     amount:3200, notes:'Lunch service', locked:false },
+  { id:2, date:'11 Apr 2025', kind:'expense', cat:'Supplies',    branch:'Main',     amount:850,  notes:'Vegetable order', locked:true },
+  { id:3, date:'10 Apr 2025', kind:'income',  cat:'Beverages',   branch:'Branch 2', amount:1100, notes:'', locked:false },
+  { id:4, date:'09 Apr 2025', kind:'expense', cat:'Utilities',   branch:'Main',     amount:620,  notes:'Electricity', locked:false },
+  { id:5, date:'08 Apr 2025', kind:'income',  cat:'Food Sales',  branch:'Branch 2', amount:2800, notes:'Dinner service', locked:false },
+  { id:6, date:'07 Apr 2025', kind:'expense', cat:'Salaries',    branch:'Main',     amount:4500, notes:'Monthly staff', locked:true },
+];
+
+const SHAREHOLDERS = [
+  { id:1, name:'Ahmed Al Farsi',  branch:'Main',     pct:35, invested:120000, profit:18200, withdrawn:5000,  linked:true,  active:true },
+  { id:2, name:'Khalid Rahman',   branch:'Main',     pct:30, invested:100000, profit:15500, withdrawn:3000,  linked:true,  active:true },
+  { id:3, name:'Sara Al Hashimi', branch:'Branch 2', pct:50, invested:80000,  profit:9800,  withdrawn:0,     linked:false, active:true },
+  { id:4, name:'Omar Nasser',     branch:'Branch 2', pct:50, invested:75000,  profit:8200,  withdrawn:2000,  linked:true,  active:true },
+  { id:5, name:'Fatima Al Ali',   branch:'Main',     pct:35, invested:50000,  profit:6100,  withdrawn:1000,  linked:false, active:false },
+];
+
+const fmtMoney = (n) => 'AED ' + Number(n).toLocaleString('en-GB', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+/* ─── Layout ────────────────────────────────────── */
+const NAV = [
+  { id:'dashboard',    label:'Dashboard',    icon:'LayoutDashboard' },
+  { id:'transactions', label:'Transactions', icon:'Receipt' },
+  { id:'shareholders', label:'Shareholders', icon:'Users' },
+  { id:'distributions',label:'Distributions',icon:'BadgeDollarSign' },
+  { id:'reports',      label:'Reports',      icon:'FileText' },
+  { id:'audit-logs',   label:'Audit Logs',   icon:'ScrollText' },
+];
+
+function Sidebar({ active, onNav }) {
+  return (
+    <aside style={{ width:240, flexShrink:0, background:'#fff', borderRight:'1px solid #e2e8f0', minHeight:'100vh', padding:'16px 12px', display:'flex', flexDirection:'column', gap:4 }}>
+      <div style={{ padding:'8px 10px 16px', display:'flex', alignItems:'center', gap:10 }}>
+        <img src="../../assets/logo-badge.png" alt="RA" style={{ width:32, height:32, borderRadius:'50%', objectFit:'cover' }} />
+        <span style={{ fontWeight:700, fontSize:15, color:'#0f172a' }}>Cafeteria HQ</span>
+      </div>
+      <nav style={{ display:'flex', flexDirection:'column', gap:2 }}>
+        {NAV.map(({ id, label, icon }) => {
+          const isActive = active === id;
+          return (
+            <button key={id} onClick={() => onNav(id)} style={{
+              display:'flex', alignItems:'center', gap:10,
+              padding:'8px 10px', borderRadius:8, border:'none', cursor:'pointer',
+              background: isActive ? '#eef7ff' : 'transparent',
+              color: isActive ? '#1f63e0' : '#475569',
+              fontFamily:'inherit', fontSize:14, fontWeight: isActive ? 600 : 400,
+              textAlign:'left', transition:'background .1s, color .1s',
+            }}>
+              <Icon name={icon} size={16} color={isActive ? '#1f63e0' : '#64748b'} />
+              {label}
+            </button>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
+
+function Header({ user = 'Admin User', role = 'owner', onSignOut }) {
+  return (
+    <header style={{ background:'#fff', borderBottom:'1px solid #e2e8f0', padding:'10px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+      <span style={{ fontSize:13, color:'#64748b' }}>Signed in as <b style={{ color:'#0f172a' }}>{user}</b> · {role}</span>
+      <button onClick={onSignOut} style={{ padding:'5px 12px', borderRadius:8, border:'1px solid #e2e8f0', background:'#f8fafc', fontSize:12, fontWeight:500, color:'#475569', cursor:'pointer', fontFamily:'inherit' }}>Sign out</button>
+    </header>
+  );
+}
+
+/* ─── KPI Card ──────────────────────────────────── */
+function KPI({ label, value, color }) {
+  return (
+    <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', boxShadow:'0 1px 2px rgba(0,0,0,.05)', padding:'18px 20px', display:'flex', flexDirection:'column', gap:4 }}>
+      <span style={{ fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:'.07em', color:'#64748b' }}>{label}</span>
+      <span style={{ fontSize:26, fontWeight:700, color: color || '#0f172a', fontVariantNumeric:'tabular-nums', lineHeight:1.1 }}>{value}</span>
+    </div>
+  );
+}
+
+/* ─── Card ──────────────────────────────────────── */
+function Card({ children, style }) {
+  return <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', boxShadow:'0 1px 2px rgba(0,0,0,.05)', padding:'20px', ...style }}>{children}</div>;
+}
+
+/* ─── Table ─────────────────────────────────────── */
+const thStyle = { textAlign:'left', fontSize:11, fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em', color:'#64748b', padding:'8px 10px', borderBottom:'1px solid #e2e8f0' };
+const tdStyle = { padding:'9px 10px', borderBottom:'1px solid #f1f5f9', fontSize:13, color:'#334155' };
+
+/* ─── Dashboard ─────────────────────────────────── */
+function DashboardPage() {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      <h1 style={{ fontSize:22, fontWeight:700, color:'#0f172a' }}>Dashboard</h1>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14 }}>
+        <KPI label="Income (MTD)" value="AED 24,500" />
+        <KPI label="Expenses (MTD)" value="AED 18,200" />
+        <KPI label="Net Profit (MTD)" value="AED 6,300" color="#059669" />
+        <KPI label="Active Shareholders" value="12" />
+      </div>
+      <Card>
+        <h2 style={{ fontWeight:600, fontSize:14, marginBottom:14 }}>Last 12 months (all branches combined)</h2>
+        <table style={{ width:'100%', fontSize:13, borderCollapse:'collapse' }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Month</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>Income</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>Expenses</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>Net Profit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {MONTHLY.map(m => (
+              <tr key={m.month} style={{ transition:'background .1s' }} onMouseEnter={e => e.currentTarget.style.background='#f8fafc'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                <td style={tdStyle}>{m.month}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(m.income)}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(m.expenses)}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums', fontWeight:500, color: m.net >= 0 ? '#059669' : '#dc2626' }}>{fmtMoney(m.net)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+/* ─── Transactions ──────────────────────────────── */
+function TransactionsPage() {
+  const [kind, setKind] = useState('income');
+  const [showForm, setShowForm] = useState(false);
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      <h1 style={{ fontSize:22, fontWeight:700 }}>Transactions</h1>
+      {/* Add form */}
+      <Card>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: showForm ? 16 : 0 }}>
+          <h2 style={{ fontWeight:600, fontSize:14 }}>Add Transaction</h2>
+          <button onClick={() => setShowForm(!showForm)} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:'none', background:'#1f63e0', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', fontFamily:'inherit' }}>
+            <Icon name="Plus" size={14} color="#fff" />{showForm ? 'Close' : 'New'}
+          </button>
+        </div>
+        {showForm && (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr auto', gap:12, alignItems:'flex-end' }}>
+            <div>
+              <label style={{ fontSize:11, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>Type</label>
+              <select value={kind} onChange={e=>setKind(e.target.value)} style={{ width:'100%', borderRadius:8, border:'1px solid #cbd5e1', padding:'8px 10px', fontSize:13, fontFamily:'inherit', outline:'none' }}>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>Category</label>
+              <select style={{ width:'100%', borderRadius:8, border:'1px solid #cbd5e1', padding:'8px 10px', fontSize:13, fontFamily:'inherit', outline:'none' }}>
+                <option>Food Sales</option><option>Beverages</option><option>Supplies</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>Amount (AED)</label>
+              <input type="number" placeholder="0.00" style={{ width:'100%', borderRadius:8, border:'1px solid #cbd5e1', padding:'8px 10px', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>Notes</label>
+              <input type="text" placeholder="Optional note" style={{ width:'100%', borderRadius:8, border:'1px solid #cbd5e1', padding:'8px 10px', fontSize:13, fontFamily:'inherit', outline:'none' }} />
+            </div>
+            <button style={{ padding:'8px 16px', borderRadius:8, background:'#1f63e0', color:'#fff', fontSize:13, fontWeight:600, border:'none', cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap' }}>Save</button>
+          </div>
+        )}
+      </Card>
+      <Card>
+        <h2 style={{ fontWeight:600, fontSize:14, marginBottom:14 }}>Recent (last 100)</h2>
+        <table style={{ width:'100%', fontSize:13, borderCollapse:'collapse' }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Date</th><th style={thStyle}>Kind</th><th style={thStyle}>Category</th>
+              <th style={thStyle}>Branch</th><th style={{ ...thStyle, textAlign:'right' }}>Amount</th>
+              <th style={thStyle}>Notes</th><th style={thStyle}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {TRANSACTIONS.map(t => (
+              <tr key={t.id} onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+                <td style={tdStyle}>{t.date}</td>
+                <td style={tdStyle}><span style={{ color: t.kind==='income' ? '#059669' : '#dc2626', fontWeight:500 }}>{t.kind}</span></td>
+                <td style={tdStyle}>{t.cat}</td>
+                <td style={tdStyle}>{t.branch}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(t.amount)}</td>
+                <td style={{ ...tdStyle, color:'#94a3b8', maxWidth:180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.notes}</td>
+                <td style={tdStyle}>{t.locked && <span style={{ fontSize:11, color:'#b45309', background:'#fef3c7', padding:'2px 7px', borderRadius:4 }}>locked</span>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+/* ─── Shareholders ──────────────────────────────── */
+function ShareholdersPage() {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      <h1 style={{ fontSize:22, fontWeight:700 }}>Shareholders</h1>
+      <Card>
+        <h2 style={{ fontWeight:600, fontSize:14, marginBottom:12 }}>Ownership totals per branch</h2>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+          {[['Main', 100], ['Branch 2', 100]].map(([name, pct]) => (
+            <div key={name} style={{ display:'flex', justifyContent:'space-between', border:'1px solid #e2e8f0', borderRadius:8, padding:'8px 12px', fontSize:13 }}>
+              <span style={{ color:'#475569' }}>{name}</span>
+              <span style={{ fontVariantNumeric:'tabular-nums', fontWeight:500, color: Math.abs(pct-100)<0.01 ? '#059669' : '#d97706' }}>{pct.toFixed(2)}%</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+      <Card>
+        <table style={{ width:'100%', fontSize:13, borderCollapse:'collapse' }}>
+          <thead>
+            <tr>
+              <th style={thStyle}>Name</th><th style={thStyle}>Branch</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>%</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>Invested</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>Profit</th>
+              <th style={{ ...thStyle, textAlign:'right' }}>Withdrawn</th>
+              <th style={thStyle}>Login</th><th style={thStyle}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SHAREHOLDERS.map(s => (
+              <tr key={s.id} onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'} onMouseLeave={e=>e.currentTarget.style.background=''}>
+                <td style={{ ...tdStyle, fontWeight:500, color:'#1a4fb3', cursor:'pointer' }}>{s.name}</td>
+                <td style={{ ...tdStyle, color:'#64748b' }}>{s.branch}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{s.pct.toFixed(2)}%</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(s.invested)}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(s.profit)}</td>
+                <td style={{ ...tdStyle, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(s.withdrawn)}</td>
+                <td style={tdStyle}><span style={{ fontSize:11, color: s.linked ? '#059669' : '#d97706' }}>{s.linked ? 'linked' : 'none'}</span></td>
+                <td style={tdStyle}><span style={{ fontSize:11, color: s.active ? '#059669' : '#94a3b8' }}>{s.active ? 'active' : 'inactive'}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
+/* ─── Placeholder pages ─────────────────────────── */
+function PlaceholderPage({ title, icon }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      <h1 style={{ fontSize:22, fontWeight:700 }}>{title}</h1>
+      <Card style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:12, padding:'60px 20px', color:'#94a3b8' }}>
+        <Icon name={icon} size={36} color="#cbd5e1" />
+        <p style={{ fontSize:14 }}>{title} content coming soon</p>
+      </Card>
+    </div>
+  );
+}
+
+/* ─── Login ─────────────────────────────────────── */
+function LoginPage({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [pass, setPass] = useState('');
+  const [loading, setLoading] = useState(false);
+  function submit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => { setLoading(false); onLogin(); }, 900);
+  }
+  return (
+    <div style={{ minHeight:'100vh', background:'#f8fafc', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <form onSubmit={submit} style={{ background:'#fff', borderRadius:14, border:'1px solid #e2e8f0', boxShadow:'0 4px 24px rgba(0,0,0,.07)', padding:'32px', width:360, display:'flex', flexDirection:'column', gap:18 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+          <h1 style={{ fontSize:20, fontWeight:700 }}>Sign in</h1>
+          <p style={{ fontSize:13, color:'#64748b' }}>Rashed Ali Cafeteria</p>
+        </div>
+        <div>
+          <label style={{ fontSize:11, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>Email</label>
+          <input className="inp" type="email" required value={email} onChange={e=>setEmail(e.target.value)} style={{ width:'100%', borderRadius:8, border:'1px solid #cbd5e1', padding:'8px 12px', fontSize:14, fontFamily:'inherit', outline:'none' }} />
+        </div>
+        <div>
+          <label style={{ fontSize:11, fontWeight:600, color:'#64748b', display:'block', marginBottom:4 }}>Password</label>
+          <input type="password" required value={pass} onChange={e=>setPass(e.target.value)} style={{ width:'100%', borderRadius:8, border:'1px solid #cbd5e1', padding:'8px 12px', fontSize:14, fontFamily:'inherit', outline:'none' }} />
+        </div>
+        <button type="submit" disabled={loading} style={{ padding:'9px', borderRadius:8, background: loading ? '#93b4f5' : '#1f63e0', color:'#fff', fontSize:14, fontWeight:600, border:'none', cursor: loading ? 'not-allowed' : 'pointer', fontFamily:'inherit', transition:'background .15s' }}>
+          {loading ? 'Signing in…' : 'Sign in'}
+        </button>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ flex:1, borderTop:'1px solid #e2e8f0' }} />
+          <span style={{ fontSize:12, color:'#94a3b8' }}>or</span>
+          <div style={{ flex:1, borderTop:'1px solid #e2e8f0' }} />
+        </div>
+        <button type="button" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, padding:'8px', borderRadius:8, border:'1px solid #e2e8f0', background:'#fff', fontSize:13, fontWeight:500, color:'#475569', cursor:'pointer', fontFamily:'inherit' }}>
+          <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.84l6.1-6.1C34.46 3.09 29.5 1 24 1 14.82 1 7.07 6.48 3.64 14.22l7.1 5.52C12.4 13.67 17.73 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.64-.15-3.22-.42-4.75H24v9h12.42c-.54 2.9-2.18 5.36-4.64 7.01l7.18 5.58C43.18 37.18 46.1 31.27 46.1 24.5z"/><path fill="#FBBC05" d="M10.74 28.26A14.5 14.5 0 0 1 9.5 24c0-1.48.25-2.91.74-4.26l-7.1-5.52A23.93 23.93 0 0 0 0 24c0 3.86.92 7.5 2.54 10.72l8.2-6.46z"/><path fill="#34A853" d="M24 47c5.5 0 10.12-1.82 13.5-4.94l-7.18-5.58c-1.82 1.22-4.15 1.95-6.32 1.95-6.27 0-11.6-4.17-13.26-9.74l-8.2 6.46C7.07 41.52 14.82 47 24 47z"/></svg>
+          Sign in with Google
+        </button>
+      </form>
+    </div>
+  );
+}
+
+/* ─── App shell ─────────────────────────────────── */
+function App() {
+  const [screen, setScreen] = useState('login');
+  const [page, setPage] = useState('dashboard');
+
+  if (screen === 'login') {
+    return <LoginPage onLogin={() => setScreen('app')} />;
+  }
+
+  const pages = {
+    dashboard:     <DashboardPage />,
+    transactions:  <TransactionsPage />,
+    shareholders:  <ShareholdersPage />,
+    distributions: <PlaceholderPage title="Distributions" icon="BadgeDollarSign" />,
+    reports:       <PlaceholderPage title="Reports" icon="FileText" />,
+    'audit-logs':  <PlaceholderPage title="Audit Logs" icon="ScrollText" />,
+  };
+
+  return (
+    <div style={{ display:'flex', height:'100vh', overflow:'hidden' }}>
+      <Sidebar active={page} onNav={setPage} />
+      <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+        <Header onSignOut={() => setScreen('login')} />
+        <main style={{ flex:1, overflowY:'auto', padding:24 }}>
+          {pages[page] || pages.dashboard}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

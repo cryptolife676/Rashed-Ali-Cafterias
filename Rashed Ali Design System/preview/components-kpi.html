@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; padding: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .kpi { background: #fff; border-radius: 12px; box-shadow: 0 1px 2px 0 rgb(0 0 0/.05); border: 1px solid #e2e8f0; padding: 18px 20px; min-width: 150px; display: flex; flex-direction: column; gap: 4px; }
+  .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
+  .kpi-value { font-size: 26px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .kpi-sub { font-size: 12px; color: #94a3b8; }
+
+  .profit { color: #059669; }
+  .loss { color: #dc2626; }
+</style>
+</head>
+<body>
+  <div class="kpi">
+    <span class="kpi-label">Income (MTD)</span>
+    <span class="kpi-value">AED 24,500</span>
+    <span class="kpi-sub">This month</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Expenses (MTD)</span>
+    <span class="kpi-value">AED 18,200</span>
+    <span class="kpi-sub">This month</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Net Profit (MTD)</span>
+    <span class="kpi-value profit">AED 6,300</span>
+    <span class="kpi-sub">↑ vs last month</span>
+  </div>
+  <div class="kpi">
+    <span class="kpi-label">Active Shareholders</span>
+    <span class="kpi-value">12</span>
+    <span class="kpi-sub">All branches</span>
+  </div>
+</body>
+</html>

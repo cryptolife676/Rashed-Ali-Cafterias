@@ -1,0 +1,134 @@
+/*
+ * Rashed Ali Cafeterias — Design System
+ * colors_and_type.css
+ *
+ * Two visual contexts:
+ *   1. BRAND  — black + gold, used for marketing, menus, packaging
+ *   2. APP    — light slate + brand-blue, used for internal financial mgmt web app
+ */
+
+/* ─────────────────────────────────────────
+   GOOGLE FONTS
+   Primary display: Playfair Display (nearest match to premium serif used in logos)
+   UI sans: Plus Jakarta Sans (clean, modern — closer feel than Inter/Roboto)
+   Arabic: Noto Naskh Arabic (for Arabic text in brand contexts)
+───────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;600;700&display=swap');
+
+:root {
+  /* ═══════════════════════════════════════
+     BRAND PALETTE — Gold & Black
+  ═══════════════════════════════════════ */
+  --gold-100: #fdf6e3;
+  --gold-200: #f5e4a8;
+  --gold-300: #e8c96a;
+  --gold-400: #d4a93a;
+  --gold-500: #c9a227;   /* primary brand gold */
+  --gold-600: #b08a1a;
+  --gold-700: #8d6d10;
+  --gold-800: #6b5009;
+  --gold-900: #3e2e04;
+
+  --brand-black: #0c0b09;
+  --brand-black-soft: #1a1814;
+  --brand-black-card: #211f1b;
+  --brand-cream: #faf8f3;
+
+  /* ═══════════════════════════════════════
+     APP PALETTE — Brand Blue & Slate
+  ═══════════════════════════════════════ */
+  --app-brand-50:  #eef7ff;
+  --app-brand-100: #d9ecff;
+  --app-brand-500: #2f7bff;
+  --app-brand-600: #1f63e0;
+  --app-brand-700: #1a4fb3;
+  --app-brand-900: #0f2a5e;
+
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+
+  /* ═══════════════════════════════════════
+     SEMANTIC — APP
+  ═══════════════════════════════════════ */
+  --color-income:      #059669;   /* emerald-600 */
+  --color-income-bg:   #d1fae5;
+  --color-expense:     #dc2626;   /* red-600 */
+  --color-expense-bg:  #fee2e2;
+  --color-warning:     #d97706;
+  --color-warning-bg:  #fef3c7;
+  --color-locked:      #b45309;   /* amber */
+
+  /* ═══════════════════════════════════════
+     APP SEMANTIC SURFACES
+  ═══════════════════════════════════════ */
+  --bg-page:      var(--slate-50);
+  --bg-card:      #ffffff;
+  --bg-sidebar:   #ffffff;
+  --border-card:  var(--slate-200);
+  --border-input: var(--slate-300);
+  --fg-primary:   var(--slate-900);
+  --fg-secondary: var(--slate-600);
+  --fg-muted:     var(--slate-400);
+  --fg-link:      var(--app-brand-600);
+
+  /* ═══════════════════════════════════════
+     TYPOGRAPHY
+  ═══════════════════════════════════════ */
+  /* Display — brand contexts, hero headings */
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  /* Arabic brand text */
+  --font-arabic:  'Noto Naskh Arabic', 'Traditional Arabic', serif;
+  /* UI / App — all body, labels, buttons */
+  --font-ui:      'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Mono — numbers, codes, financial figures */
+  --font-mono:    'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Scale */
+  --text-xs:   0.75rem;    /* 12px */
+  --text-sm:   0.875rem;   /* 14px */
+  --text-base: 1rem;       /* 16px */
+  --text-lg:   1.125rem;   /* 18px */
+  --text-xl:   1.25rem;    /* 20px */
+  --text-2xl:  1.5rem;     /* 24px */
+  --text-3xl:  1.875rem;   /* 30px */
+  --text-4xl:  2.25rem;    /* 36px */
+
+  /* Weights */
+  --weight-regular:   400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+
+  /* ═══════════════════════════════════════
+     SPACING & RADII
+  ═══════════════════════════════════════ */
+  --radius-sm:  0.375rem;  /* 6px  — inputs, badges */
+  --radius-md:  0.5rem;    /* 8px  — buttons */
+  --radius-lg:  0.75rem;   /* 12px — cards (rounded-xl equiv) */
+  --radius-xl:  1rem;      /* 16px */
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+  /* Brand gold shadow (for brand context cards) */
+  --shadow-gold: 0 4px 24px 0 rgb(201 162 39 / 0.18);
+}
+
+/* ─────────────────────────────────────────
+   ELEMENT DEFAULTS
+───────────────────────────────────────── */
+h1 { font-family: var(--font-ui); font-size: var(--text-2xl); font-weight: var(--weight-semibold); color: var(--fg-primary); }
+h2 { font-family: var(--font-ui); font-size: var(--text-xl);  font-weight: var(--weight-semibold); color: var(--fg-primary); }
+h3 { font-family: var(--font-ui); font-size: var(--text-lg);  font-weight: var(--weight-medium);   color: var(--fg-primary); }
+p  { font-family: var(--font-ui); font-size: var(--text-sm);  color: var(--fg-secondary); line-height: 1.6; }
+code { font-family: var(--font-mono); font-size: 0.8em; background: var(--slate-100); padding: 0.1em 0.3em; border-radius: var(--radius-sm); }

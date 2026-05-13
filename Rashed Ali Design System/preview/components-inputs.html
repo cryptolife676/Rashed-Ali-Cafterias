@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; padding: 20px; display: flex; flex-direction: column; gap: 14px; max-width: 700px; }
+
+  .label { display: block; font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 4px; letter-spacing: .01em; }
+  .input { width: 100%; border-radius: 8px; border: 1px solid #cbd5e1; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; color: #0f172a; background: #fff; transition: border .15s, box-shadow .15s; }
+  .input:focus { border-color: #2f7bff; box-shadow: 0 0 0 3px rgba(47,123,255,.15); }
+  .input.err { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
+  .hint { font-size: 11px; color: #94a3b8; margin-top: 3px; }
+  .err-msg { font-size: 12px; color: #dc2626; margin-top: 3px; }
+
+  .row { display: flex; gap: 12px; }
+  select.input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
+</style>
+</head>
+<body>
+  <div>
+    <label class="label">Email</label>
+    <input class="input" type="email" placeholder="admin@rashedali.ae">
+    <span class="hint">Use your registered email address</span>
+  </div>
+  <div>
+    <label class="label">Password</label>
+    <input class="input" type="password" value="••••••••">
+  </div>
+  <div>
+    <label class="label">Amount (error state)</label>
+    <input class="input err" type="text" value="abc">
+    <span class="err-msg">Please enter a valid number</span>
+  </div>
+  <div class="row">
+    <div style="flex:1">
+      <label class="label">Branch</label>
+      <select class="input">
+        <option>Main Branch</option>
+        <option>Branch 2</option>
+      </select>
+    </div>
+    <div style="flex:1">
+      <label class="label">Category</label>
+      <select class="input">
+        <option>Food Sales</option>
+        <option>Beverages</option>
+      </select>
+    </div>
+  </div>
+</body>
+</html>

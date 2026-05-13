@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Plus+Jakarta+Sans:wght@400;600&family=Noto+Naskh+Arabic:wght@700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100vw; height: 100vh; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+
+  .stage-wrap {
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .stage {
+    width: 1200px; height: 628px;
+    background: #000;
+    position: relative;
+    display: flex;
+    align-items: center;
+    transform-origin: center center;
+  }
+
+  .bg-glow {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 50% 90% at 30% 50%, rgba(201,162,39,0.11) 0%, transparent 70%),
+      radial-gradient(ellipse 35% 55% at 78% 50%, rgba(201,162,39,0.07) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* corner brackets */
+  .corner { position: absolute; width: 28px; height: 28px; }
+  .corner.tl { top: 20px; left: 20px; border-top: 2px solid #c9a227; border-left: 2px solid #c9a227; }
+  .corner.tr { top: 20px; right: 20px; border-top: 2px solid #c9a227; border-right: 2px solid #c9a227; }
+  .corner.bl { bottom: 20px; left: 20px; border-bottom: 2px solid #c9a227; border-left: 2px solid #c9a227; }
+  .corner.br { bottom: 20px; right: 20px; border-bottom: 2px solid #c9a227; border-right: 2px solid #c9a227; }
+  /* thin inner frame */
+  .frame { position: absolute; inset: 20px; border: 1px solid rgba(201,162,39,0.2); pointer-events: none; }
+
+  /* Logo col */
+  .col-logo {
+    position: relative; z-index: 2;
+    width: 360px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    height: 100%;
+  }
+  .logo-img {
+    width: 240px; height: 240px; object-fit: contain;
+    filter: drop-shadow(0 0 36px rgba(201,162,39,0.45));
+  }
+
+  /* vertical divider */
+  .divider-v {
+    width: 1px; height: 400px; align-self: center; flex-shrink: 0;
+    background: linear-gradient(to bottom, transparent 0%, rgba(201,162,39,0.55) 20%, rgba(201,162,39,0.55) 80%, transparent 100%);
+    position: relative; z-index: 2;
+  }
+
+  /* Content col */
+  .col-content {
+    position: relative; z-index: 2;
+    flex: 1;
+    padding: 0 56px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .eyebrow {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: rgba(201,162,39,0.7);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 16px;
+  }
+  .eyebrow::after { content: ''; flex: 1; height: 1px; background: linear-gradient(to right, rgba(201,162,39,0.35), transparent); }
+
+  .arabic-name {
+    font-family: 'Noto Naskh Arabic', 'Traditional Arabic', 'Arabic Typesetting', serif;
+    font-size: 52px; font-weight: 700;
+    color: #c9a227;
+    direction: rtl; text-align: right;
+    line-height: 1.15;
+    text-shadow: 0 0 40px rgba(201,162,39,0.4);
+    margin-bottom: 4px;
+  }
+
+  .english-name {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 44px; font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .tagline {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 15px; font-style: italic; font-weight: 400;
+    color: rgba(245,228,168,0.65);
+    margin-bottom: 26px;
+    letter-spacing: 0.03em;
+  }
+
+  .rule { width: 72px; height: 1px; background: linear-gradient(to right, #c9a227, rgba(201,162,39,0.15)); margin-bottom: 24px; }
+
+  .offerings {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 28px;
+  }
+  .pill {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+    color: rgba(245,228,168,0.8);
+    padding: 5px 14px; border-radius: 999px;
+    border: 1px solid rgba(201,162,39,0.38);
+    background: rgba(201,162,39,0.06);
+    white-space: nowrap;
+  }
+
+  .call-row { display: flex; align-items: center; gap: 18px; }
+  .call-label {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase;
+    color: rgba(201,162,39,0.5); white-space: nowrap;
+  }
+  .call-nums { display: flex; flex-direction: column; gap: 1px; }
+  .call-num {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 16px; font-weight: 600; letter-spacing: 0.06em;
+    color: #fff;
+  }
+
+  /* dot grid decoration */
+  .dots {
+    position: absolute; bottom: 44px; right: 44px; z-index: 1;
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; opacity: 0.15;
+  }
+  .dot { width: 3px; height: 3px; border-radius: 50%; background: #c9a227; }
+</style>
+</head>
+<body>
+<div class="stage-wrap">
+<div class="stage" id="stage">
+  <div class="bg-glow"></div>
+  <div class="frame"></div>
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <div class="col-logo">
+    <img class="logo-img" src="../assets/logo-badge.png" alt="Rashed Ali">
+  </div>
+
+  <div class="divider-v"></div>
+
+  <div class="col-content">
+    <div class="eyebrow">UAE · Group of Companys</div>
+    <div class="arabic-name">راشد علي</div>
+    <div class="english-name">RASHED ALI</div>
+    <div class="tagline">Crafted with passion. Served with pride.</div>
+    <div class="rule"></div>
+    <div class="offerings">
+      <span class="pill">Shawarma & Wraps</span>
+      <span class="pill">Specialty Coffee</span>
+      <span class="pill">Fresh Juices</span>
+      <span class="pill">Fast Food</span>
+    </div>
+    <div class="call-row">
+      <div class="call-label">Call for<br>Delivery</div>
+      <div class="call-nums">
+        <div class="call-num">02-67 22 173</div>
+        <div class="call-num">050-325 8629</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dots">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+</div>
+</div>
+<script>
+  function scaleStage() {
+    const stage = document.getElementById('stage');
+    const scaleX = window.innerWidth / 1200;
+    const scaleY = window.innerHeight / 628;
+    const scale = Math.min(scaleX, scaleY);
+    stage.style.transform = `scale(${scale})`;
+  }
+  scaleStage();
+  window.addEventListener('resize', scaleStage);
+</script>
+</body>
+</html>
