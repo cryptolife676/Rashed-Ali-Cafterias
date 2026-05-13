@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -17,20 +17,15 @@ body { @apply bg-slate-50 text-slate-900 antialiased; }
 
 /* ── Buttons ── */
 .btn {
-  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm
+         transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
 }
-.btn-primary {
-  @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm hover:shadow;
-}
-.btn-secondary {
-  @apply btn bg-slate-100 text-slate-800 hover:bg-slate-200;
-}
-.btn-danger {
-  @apply btn bg-red-600 text-white hover:bg-red-700;
-}
-.btn-ghost {
-  @apply btn text-slate-600 hover:bg-slate-100;
-}
+.btn-primary  { @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm; }
+.btn-secondary{ @apply btn bg-slate-100 text-slate-800 hover:bg-slate-200; }
+.btn-danger   { @apply btn bg-red-600 text-white hover:bg-red-700; }
+.btn-ghost    { @apply btn text-slate-600 hover:bg-slate-100; }
+/* Gold CTA — use on dark/brand backgrounds */
+.btn-gold     { @apply btn bg-gold-500 text-ink hover:bg-gold-400 shadow-sm font-bold; }
 
 /* ── Form ── */
 .input {
@@ -38,53 +33,42 @@ body { @apply bg-slate-50 text-slate-900 antialiased; }
          focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 outline-none
          placeholder:text-slate-400 transition;
 }
-.label {
-  @apply block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide;
-}
+.label { @apply block text-[11px] font-bold text-slate-500 mb-1.5 uppercase tracking-widest; }
 
 /* ── KPI tiles ── */
 .kpi { @apply card flex flex-col gap-1; }
-.kpi-label { @apply text-xs font-semibold uppercase tracking-wide text-slate-400; }
-.kpi-value { @apply text-2xl font-bold text-slate-900; }
+.kpi-label { @apply text-[11px] font-bold uppercase tracking-widest text-slate-400; }
+.kpi-value { @apply text-2xl font-bold text-slate-900 font-mono; }
 
 /* ── Table ── */
 table.tbl { @apply w-full text-sm; }
 table.tbl thead { @apply bg-slate-50; }
 table.tbl th {
-  @apply text-left text-xs font-semibold uppercase tracking-wide text-slate-500
+  @apply text-left text-[11px] font-bold uppercase tracking-widest text-slate-500
          px-4 py-3 border-b border-slate-200;
 }
-table.tbl td {
-  @apply px-4 py-3 border-b border-slate-100 text-slate-700;
-}
+table.tbl td   { @apply px-4 py-3 border-b border-slate-100 text-slate-700; }
 table.tbl tbody tr:hover { @apply bg-slate-50/60; }
 table.tbl tbody tr:last-child td { @apply border-b-0; }
 
-/* ── Badge ── */
-.badge {
-  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold;
-}
-.badge-green  { @apply badge bg-emerald-100 text-emerald-700; }
-.badge-red    { @apply badge bg-red-100 text-red-700; }
-.badge-amber  { @apply badge bg-amber-100 text-amber-700; }
-.badge-blue   { @apply badge bg-blue-100 text-blue-700; }
-.badge-slate  { @apply badge bg-slate-100 text-slate-600; }
+/* ── Badges ── */
+.badge         { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+.badge-green   { @apply badge bg-emerald-100 text-emerald-700; }
+.badge-red     { @apply badge bg-red-100 text-red-700; }
+.badge-amber   { @apply badge bg-amber-100 text-amber-700; }
+.badge-blue    { @apply badge bg-blue-100 text-blue-700; }
+.badge-slate   { @apply badge bg-slate-100 text-slate-600; }
+.badge-gold    { @apply badge bg-gold-200 text-gold-800; }
 
 /* ── Page header ── */
-.page-header {
-  @apply mb-6 flex items-start justify-between gap-4;
-}
-.page-title {
-  @apply text-2xl font-bold text-slate-900;
-}
-.page-subtitle {
-  @apply text-sm text-slate-500 mt-0.5;
-}
+.page-header   { @apply mb-6 flex items-start justify-between gap-4; }
+.page-title    { @apply text-2xl font-bold text-slate-900; }
+.page-subtitle { @apply text-sm text-slate-500 mt-0.5; }
 
 /* ────────────────────────────────────────────────
-   Glow-border — rotating light sweep around a card
-   (inspired by Google Stitch)
-   Usage: add class "glow-card" to any wrapper div
+   GLOW BORDER — rotating gold light sweep
+   (Google Stitch-style animated border)
+   Add class "glow-card" to any wrapper div.
 ──────────────────────────────────────────────── */
 @property --glow-angle {
   syntax: '<angle>';
@@ -96,13 +80,12 @@ table.tbl tbody tr:last-child td { @apply border-b-0; }
   to { --glow-angle: 360deg; }
 }
 
+/* Light variant (white fill inside) */
 .glow-card {
   position: relative;
-  border-radius: 1.25rem; /* matches rounded-2xl */
-  z-index: 0;
+  border-radius: 1.25rem;
+  isolation: isolate;
 }
-
-/* the spinning gradient sits behind the card */
 .glow-card::before {
   content: '';
   position: absolute;
@@ -112,17 +95,15 @@ table.tbl tbody tr:last-child td { @apply border-b-0; }
     from var(--glow-angle),
     transparent 0%,
     transparent 30%,
-    #f97316 45%,   /* brand orange */
-    #fbbf24 50%,   /* amber */
-    #f97316 55%,
+    #c9a227 44%,
+    #e8c96a 50%,
+    #c9a227 56%,
     transparent 70%,
     transparent 100%
   );
   animation: glow-spin 4s linear infinite;
   z-index: -1;
 }
-
-/* white fill so the gradient only shows as a border */
 .glow-card::after {
   content: '';
   position: absolute;
@@ -132,13 +113,12 @@ table.tbl tbody tr:last-child td { @apply border-b-0; }
   z-index: -1;
 }
 
-/* dark variant — for use on dark backgrounds */
+/* Dark variant (ink fill inside — for dark backgrounds) */
 .glow-card-dark {
   position: relative;
   border-radius: 1.25rem;
-  z-index: 0;
+  isolation: isolate;
 }
-
 .glow-card-dark::before {
   content: '';
   position: absolute;
@@ -148,21 +128,20 @@ table.tbl tbody tr:last-child td { @apply border-b-0; }
     from var(--glow-angle),
     transparent 0%,
     transparent 30%,
-    #f97316 45%,
-    #fb923c 50%,
-    #f97316 55%,
+    #c9a227 44%,
+    #e8c96a 50%,
+    #c9a227 56%,
     transparent 70%,
     transparent 100%
   );
   animation: glow-spin 4s linear infinite;
   z-index: -1;
 }
-
 .glow-card-dark::after {
   content: '';
   position: absolute;
   inset: 2px;
   border-radius: calc(1.25rem - 2px);
-  background: #1e1e2e;
+  background: #211f1b;
   z-index: -1;
 }

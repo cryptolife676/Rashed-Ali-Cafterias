@@ -12,39 +12,57 @@ const items = [
 
 export default function Sidebar() {
   return (
-    <aside className="w-64 shrink-0 bg-white border-r border-slate-200 min-h-screen flex flex-col">
+    <aside className="w-64 shrink-0 min-h-screen flex flex-col" style={{ background: '#0c0b09' }}>
+
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-slate-100">
+      <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(201,162,39,0.15)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+            style={{ background: 'linear-gradient(135deg, #c9a227, #e8c96a)', color: '#0c0b09' }}
+          >
             RA
           </div>
           <div>
-            <div className="text-sm font-bold text-slate-900 leading-tight">Rashed Ali Co.</div>
-            <div className="text-xs text-slate-400">Management Portal</div>
+            <div className="text-white font-bold text-sm leading-tight">RASHED ALI</div>
+            <div className="text-[10px] tracking-widest font-medium" style={{ color: '#c9a227' }}>
+              MANAGEMENT
+            </div>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
-        <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Menu</p>
+      <nav className="flex-1 px-3 py-5 space-y-0.5">
+        <p className="px-3 mb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(201,162,39,0.5)' }}>
+          Navigation
+        </p>
         {items.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
-            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-slate-600 font-medium
-                       hover:bg-brand-50 hover:text-brand-700 transition-all duration-150"
+            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+            style={{ color: 'rgba(255,255,255,0.55)' }}
+            onMouseOver={e => {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,162,39,0.1)';
+              (e.currentTarget as HTMLAnchorElement).style.color = '#c9a227';
+            }}
+            onMouseOut={e => {
+              (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
+              (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.55)';
+            }}
           >
-            <Icon className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-brand-600 transition-colors" />
+            <Icon className="w-4 h-4 shrink-0" />
             {label}
           </Link>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-slate-100">
-        <p className="text-[11px] text-slate-400">© {new Date().getFullYear()} Rashed Ali Cafeteria</p>
+      <div className="px-5 py-4 border-t" style={{ borderColor: 'rgba(201,162,39,0.1)' }}>
+        <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+          © {new Date().getFullYear()} Rashed Ali Co.
+        </p>
       </div>
     </aside>
   );
