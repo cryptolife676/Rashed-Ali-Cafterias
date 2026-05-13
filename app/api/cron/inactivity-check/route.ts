@@ -1,12 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isAuthorizedCron } from '@/lib/auth/cron';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function authorized(req: Request) {
-  return req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
-}
 
 const WARN = Number(process.env.INACTIVITY_WARN_DAYS ?? 5);
 const ALERT = Number(process.env.INACTIVITY_ALERT_DAYS ?? 6);
@@ -28,7 +25,7 @@ async function sendEmail(subject: string, html: string) {
 }
 
 export async function GET(req: Request) {
-  if (!authorized(req)) {
+  if (!isAuthorizedCron(req)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
 

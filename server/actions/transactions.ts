@@ -52,6 +52,7 @@ export async function updateTransaction(input: unknown): Promise<ActionResult> {
   const { error } = await supabase.from('transactions').update(rest).eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin/transactions');
+  revalidatePath('/admin/dashboard');
   return { ok: true, data: null };
 }
 
@@ -72,5 +73,6 @@ export async function deleteTransaction(id: string): Promise<ActionResult> {
   const { error } = await supabase.from('transactions').delete().eq('id', id);
   if (error) return { ok: false, error: error.message };
   revalidatePath('/admin/transactions');
+  revalidatePath('/admin/dashboard');
   return { ok: true, data: null };
 }

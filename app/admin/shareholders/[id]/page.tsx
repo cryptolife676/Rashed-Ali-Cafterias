@@ -27,7 +27,7 @@ export default async function ShareholderDetailPage({
     supabase.from('branches').select('id, name').order('name'),
     supabase
       .from('investments')
-      .select('id, amount, invested_at, notes, branch_id, branch:branches(name)')
+      .select('id, amount, invested_at, notes')
       .eq('shareholder_id', id)
       .order('invested_at', { ascending: false }),
     supabase
@@ -90,7 +90,7 @@ export default async function ShareholderDetailPage({
 
       <div className="card">
         <h2 className="font-semibold mb-3">Investments</h2>
-        <InvestmentManager shareholderId={sh.id} investments={investments ?? []} branches={branches ?? []} />
+        <InvestmentManager shareholderId={sh.id} investments={investments ?? []} />
       </div>
 
       <div className="card">

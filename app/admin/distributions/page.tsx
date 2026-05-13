@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { requireStaff } from '@/lib/auth/guards';
 import { formatMoney, formatDate } from '@/lib/utils';
 import DistributionForm from './DistributionForm';
 import RunActions from './RunActions';
@@ -6,6 +7,7 @@ import RunActions from './RunActions';
 export const dynamic = 'force-dynamic';
 
 export default async function DistributionsPage() {
+  const user = await requireStaff();
   const supabase = await createClient();
   const [{ data: runs }, { data: branches }] = await Promise.all([
     supabase
@@ -40,7 +42,7 @@ export default async function DistributionsPage() {
                   <span>Net: <b className="text-brand-700">{formatMoney(r.net_profit)}</b></span>
                 </div>
               </div>
-              <RunActions runId={r.id} status={r.status} />
+              <RunActions runId={r.id} status={r.status} role={user.role} />
             </div>
 
             <table className="tbl mt-4">

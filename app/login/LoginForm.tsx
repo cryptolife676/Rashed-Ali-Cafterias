@@ -8,6 +8,7 @@ export default function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get('next') ?? '/';
+  const pendingApproval = params.get('error') === 'pending_approval';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState<string | null>(null);

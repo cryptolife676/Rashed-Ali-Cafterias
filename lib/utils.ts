@@ -17,7 +17,7 @@ export function formatMoney(n: number | string, currency = 'AED') {
 
 export function formatDate(d: string | Date) {
   const dt = typeof d === 'string' ? new Date(d) : d;
-  return dt.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+  return dt.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit', timeZone: 'UTC' });
 }
 
 export function daysBetween(a: Date, b: Date) {

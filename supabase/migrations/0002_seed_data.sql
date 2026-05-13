@@ -3,6 +3,15 @@
 -- Run AFTER 0001_init.sql
 -- Numbers marked "TBD" are placeholders to satisfy the
 -- ownership_pct > 0 constraint — refine in the UI.
+--
+-- ⚠  PROJECT-SPECIFIC UUIDs — DO NOT REUSE AS A TEMPLATE
+-- The UUIDs below are real auth.users rows from the production
+-- Supabase project for Rashed Ali Cafeteria.  Cloning this repo
+-- for a new project requires replacing every UUID with the actual
+-- auth.users IDs from the new project before running this file.
+-- Running this against a different project will silently no-op
+-- all UPDATE statements (no matching rows) and leave profiles
+-- without roles/names, which will break the app.
 -- ============================================================
 
 -- ---------- 1. Profile updates for users with auth accounts -----

@@ -1,11 +1,11 @@
-import { requireUser } from '@/lib/auth/guards';
+import { requireShareholder } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatDate } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PortfolioPage() {
-  const user = await requireUser();
+  const user = await requireShareholder();
   const supabase = await createClient();
 
   // A person can be a shareholder in multiple branches — fetch all rows
@@ -44,7 +44,7 @@ export default async function PortfolioPage() {
         .in('shareholder_id', shareholderIds),
       supabase
         .from('investments')
-        .select('id, amount, invested_at, notes, shareholder_id, branch_id, branch:branches(name)')
+        .select('id, amount, invested_at, notes, shareholder_id')
         .in('shareholder_id', shareholderIds)
         .order('invested_at', { ascending: false }),
       supabase
@@ -159,9 +159,7 @@ export default async function PortfolioPage() {
               <thead><tr><th>Date</th><th>Branch</th><th className="text-right">Amount</th><th>Notes</th></tr></thead>
               <tbody>
                 {(investments ?? []).map((i: any) => {
-                  const branchLabel =
-                    (i.branch as unknown as { name: string } | null)?.name ??
-                    shBranch.get(i.shareholder_id) ?? '—';
+                  const branchLabel = shBranch.get(i.shareholder_id) ?? '—';
                   return (
                     <tr key={i.id}>
                       <td>{formatDate(i.invested_at)}</td>

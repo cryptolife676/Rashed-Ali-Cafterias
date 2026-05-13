@@ -12,5 +12,5 @@ export const DistributionRunInput = z.object({
 
 export const AdjustItemInput = z.object({
   item_id: z.string().uuid(),
-  manual_adjustment: z.coerce.number(),
+  manual_adjustment: z.coerce.number().min(-9_999_999).max(9_999_999),
 });
