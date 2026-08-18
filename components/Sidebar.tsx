@@ -41,16 +41,7 @@ export default function Sidebar() {
           <Link
             key={href}
             href={href}
-            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
-            onMouseOver={e => {
-              (e.currentTarget as HTMLAnchorElement).style.background = 'rgba(201,162,39,0.1)';
-              (e.currentTarget as HTMLAnchorElement).style.color = '#c9a227';
-            }}
-            onMouseOut={e => {
-              (e.currentTarget as HTMLAnchorElement).style.background = 'transparent';
-              (e.currentTarget as HTMLAnchorElement).style.color = 'rgba(255,255,255,0.55)';
-            }}
+            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-white/55 hover:bg-[rgba(201,162,39,0.1)] hover:text-[#c9a227]"
           >
             <Icon className="w-4 h-4 shrink-0" />
             {label}
