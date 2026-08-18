@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { LayoutDashboard, Receipt, Users, BadgeDollarSign, FileText, ScrollText } from 'lucide-react';
+import { LayoutDashboard, Receipt, Users, PieChart, BadgeDollarSign, FileText, ScrollText } from 'lucide-react';
 
 const items = [
   { href: '/admin/dashboard',     label: 'Dashboard',     icon: LayoutDashboard },
   { href: '/admin/transactions',  label: 'Transactions',  icon: Receipt },
   { href: '/admin/shareholders',  label: 'Shareholders',  icon: Users },
+  { href: '/admin/portfolios',    label: 'Portfolios',    icon: PieChart },
   { href: '/admin/distributions', label: 'Distributions', icon: BadgeDollarSign },
   { href: '/admin/reports',       label: 'Reports',       icon: FileText },
   { href: '/admin/audit-logs',    label: 'Audit Logs',    icon: ScrollText },
