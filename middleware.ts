@@ -4,7 +4,7 @@ import type { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
 type CookieItem = { name: string; value: string; options?: Partial<ResponseCookie> };
 
-const PUBLIC_PATHS = ['/login', '/auth/callback', '/api/cron'];
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/api/cron', '/api/time'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
