@@ -41,7 +41,7 @@ export default function RunActions({
         {status === 'draft' && (
           <>
             <button className="btn-primary" disabled={pending}
-              onClick={() => run(() => approveDistributionRun(runId), 'Approve and lock period transactions?')}>
+              onClick={() => run(() => approveDistributionRun(runId), 'Approve this run and lock the month’s declared profit?')}>
               Approve
             </button>
             <button className="btn-secondary" disabled={pending}
@@ -57,7 +57,7 @@ export default function RunActions({
               Pay out
             </button>
             <button className="btn-secondary" disabled={pending}
-              onClick={() => run(() => voidDistributionRun(runId), 'Void this run?')}>
+              onClick={() => run(() => voidDistributionRun(runId), 'Void this run? The month’s declared profit becomes editable again.')}>
               Void
             </button>
           </>

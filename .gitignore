@@ -8,3 +8,4 @@ dist
 *.tsbuildinfo
 dev.log
 .claude/
+supabase/.temp/

@@ -10,7 +10,7 @@ import {
   InvestmentInput,
   WithdrawalInput,
 } from '@/lib/validators/shareholder';
-import type { ActionResult } from './transactions';
+import type { ActionResult } from './types';
 
 const idSchema = z.string().uuid('Invalid ID');
 

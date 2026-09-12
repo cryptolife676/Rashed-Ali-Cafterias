@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { formatMoney, formatDate } from '@/lib/utils';
+import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -180,7 +180,7 @@ export default async function PortfoliosPage({
                 <table className="tbl">
                   <thead>
                     <tr>
-                      <th>Branch</th><th>Period</th><th>Status</th>
+                      <th>Branch</th><th>Month</th><th>Status</th>
                       <th className="text-right">Computed</th><th className="text-right">Adjustment</th>
                       <th className="text-right">Final</th><th>Paid</th>
                     </tr>
@@ -189,7 +189,7 @@ export default async function PortfoliosPage({
                     {view.items.map((it: any) => (
                       <tr key={it.id}>
                         <td className="text-slate-500">{view.shBranch.get(it.shareholder_id) ?? '—'}</td>
-                        <td>{it.run?.period_start ? `${formatDate(it.run.period_start)} → ${formatDate(it.run.period_end)}` : '—'}</td>
+                        <td>{it.run?.period_start ? formatMonth(it.run.period_start) : '—'}</td>
                         <td>{it.run?.status}</td>
                         <td className="text-right tabular-nums">{formatMoney(it.computed_amount)}</td>
                         <td className="text-right tabular-nums">{formatMoney(it.manual_adjustment)}</td>

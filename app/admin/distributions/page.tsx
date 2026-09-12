@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { requireStaff } from '@/lib/auth/guards';
-import { formatMoney, formatDate } from '@/lib/utils';
+import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
 import DistributionForm from './DistributionForm';
 import RunActions from './RunActions';
 
@@ -12,7 +12,7 @@ export default async function DistributionsPage() {
   const [{ data: runs }, { data: branches }] = await Promise.all([
     supabase
       .from('distribution_runs')
-      .select('*, items:distribution_items(id, shareholder_id, ownership_pct_snapshot, computed_amount, manual_adjustment, final_amount, paid_at, shareholder:shareholders(display_name))')
+      .select('*, branch:branches(name), items:distribution_items(id, shareholder_id, ownership_pct_snapshot, computed_amount, manual_adjustment, final_amount, paid_at, shareholder:shareholders(display_name))')
       .order('period_end', { ascending: false })
       .limit(20),
     supabase.from('branches').select('id, name').eq('is_active', true).order('name'),
@@ -28,8 +28,11 @@ export default async function DistributionsPage() {
           <div key={r.id} className="card">
             <div className="flex items-start justify-between gap-4">
               <div>
+                <div className="text-lg font-bold text-slate-900">
+                  {r.branch?.name ?? 'All branches'} · {formatMonth(r.period_start)}
+                </div>
                 <div className="text-sm text-slate-500">
-                  {formatDate(r.period_start)} → {formatDate(r.period_end)} · status:{' '}
+                  status:{' '}
                   <span className={
                     r.status === 'paid' ? 'text-emerald-700' :
                     r.status === 'approved' ? 'text-blue-700' :
@@ -37,9 +40,9 @@ export default async function DistributionsPage() {
                   }>{r.status}</span>
                 </div>
                 <div className="mt-1 flex gap-6 text-sm">
-                  <span>Income: <b>{formatMoney(r.gross_income)}</b></span>
-                  <span>Expenses: <b>{formatMoney(r.total_expenses)}</b></span>
-                  <span>Net: <b className="text-brand-700">{formatMoney(r.net_profit)}</b></span>
+                  <span>Distributable profit: <b className="text-brand-700">{formatMoney(r.net_profit)}</b></span>
+                  {Number(r.gross_income) > 0 && <span className="text-slate-500">Income: <b>{formatMoney(r.gross_income)}</b></span>}
+                  {Number(r.total_expenses) > 0 && <span className="text-slate-500">Expenses: <b>{formatMoney(r.total_expenses)}</b></span>}
                 </div>
               </div>
               <RunActions runId={r.id} status={r.status} role={user.role} />

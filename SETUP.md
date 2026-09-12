@@ -9,7 +9,7 @@ Production-grade Next.js 15 + Supabase app: accounting, profit sharing, sharehol
 ```
 app/
   (admin pages — gated by middleware + requireStaff/Admin)
-    dashboard/  transactions/  shareholders/  distributions/
+    dashboard/  monthly-profit/  shareholders/  distributions/
     reports/    audit-logs/
   portfolio/                        # shareholder-only page
   login/
@@ -26,17 +26,17 @@ lib/
   validators/ zod schemas
   accounting/ distribution.ts (largest-remainder allocation)
 
-server/actions/   transactions, shareholders, distributions  ('use server')
+server/actions/   monthly-profit, shareholders, distributions  ('use server')
 components/       Sidebar, InactivityBanner
 
-supabase/migrations/0001_init.sql        # full schema, RLS, triggers, seed
+supabase/migrations/                     # 0001 schema/RLS/triggers → 0007 monthly profit
 vercel.json                              # cron schedules
 middleware.ts                            # auth gate
 ```
 
 ### Roles
 - `super_admin`, `admin` — full access (admin panel)
-- `accountant` — can edit transactions only
+- `accountant` — can declare monthly profit only
 - `shareholder` — can read own portfolio
 - `viewer` — default role for new sign-ups, but profile starts **inactive** until an admin promotes them. Inactive users have no DB read access via RLS.
 
@@ -44,7 +44,7 @@ middleware.ts                            # auth gate
 - **Keep-alive**: `/api/cron/keep-alive` runs every 2 days, inserts a row into `keep_alive_logs` and updates `system_activity.last_keep_alive`. A real WRITE — Supabase counts this as activity.
 - **Inactivity check**: `/api/cron/inactivity-check` runs daily. If admin hasn't logged in >5 days, broadcasts an in-app notification; >6 days, also emails via Resend.
 - **Admin banner**: every admin page renders `InactivityBanner` showing the day count.
-- **Locked transactions**: once a transaction is included in an `approved` distribution run, `is_locked = true` blocks further edits.
+- **Locked months**: once a month's declared profit is rolled into an `approved` distribution run, `is_locked = true` blocks further edits. Voiding the run unlocks it.
 - **RLS on every table** — shareholders can read only their own rows; mutations go through server actions using the user's session.
 
 ---
@@ -134,15 +134,20 @@ Then in Supabase: `select * from keep_alive_logs order by pinged_at desc limit 5
 
 ## 5. Business workflow
 
-### Daily
-1. Accountant or admin opens **Transactions** → adds income (Sales) and expenses (Salaries, Rent…).
-2. Dashboard auto-updates MTD income/expenses/net profit.
+This app does not keep the branches' books. Each branch tracks its own daily
+sales and costs; what it reports here is one figure per month.
 
-### End of period (monthly)
-1. Admin opens **Distributions** → selects period (defaults to current month) → "Create draft run".
-   - Engine computes `net_profit`, snapshots ownership %, allocates with largest-remainder rounding (sum = exact net to the cent).
+### Once a month, per branch
+1. Accountant or admin opens **Monthly Profit** → picks branch + month → enters the
+   net profit the branch reported. Income and expenses are optional context.
+   - Re-saving the same branch and month replaces the earlier figure.
+2. Dashboard shows the declared profit per branch and which branches have reported.
+
+### Then distribute
+1. Admin opens **Distributions** → selects the same branch + month → "Create draft run".
+   - Engine reads the declared `net_profit`, snapshots ownership %, allocates with largest-remainder rounding (sum = exact net to the cent).
 2. Review per-shareholder amounts. Optionally enter `manual_adjustment` per item.
-3. **Approve** → transactions in that period become `is_locked = true`; status → `approved`.
+3. **Approve** → that month's declared profit becomes `is_locked = true`; status → `approved`.
 4. **Pay out** → creates `withdrawals` rows with `source='distribution'`, sets `paid_at`, status → `paid`. Shareholders can now see it in their portfolio.
 
 ### Shareholder
@@ -155,7 +160,8 @@ Then in Supabase: `select * from keep_alive_logs order by pinged_at desc limit 5
 
 - **Snapshots, not live calculations.** `distribution_items.ownership_pct_snapshot` and `computed_amount` are frozen at draft creation. Changing a shareholder's % later does NOT rewrite history.
 - **Largest-remainder allocation** ensures `Σ amounts == net_profit` exactly. Plain `pct/100*net` would lose pennies.
-- **Locked transactions** prevent editing the books once distributed. Admin can `void` a run to re-open (records remain in audit log).
+- **Declared profit, not a derived ledger.** The branches keep their own books; this app stores one `monthly_profits` row per branch per month and distributes from it. (Migration 0007 replaced a daily `transactions` ledger that nobody was going to fill in.)
+- **Locked months** prevent editing the basis of a settled payout. Admin can `void` a run to re-open (records remain in audit log).
 - **No service-role key in the browser, ever.** All mutations go through server actions or route handlers.
 - **Audit triggers** on every business table; `audit_logs` is admin-readable only.
 - **Singleton `system_activity`** table tracks last admin login + last write + last keep-alive — drives the inactivity banner without scanning audit logs.

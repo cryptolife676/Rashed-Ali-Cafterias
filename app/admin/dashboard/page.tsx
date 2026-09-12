@@ -1,17 +1,31 @@
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, formatMonth } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Wallet, Users, type LucideIcon } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-type Pnl = { income: number; expenses: number; net_profit: number };
+type DeclaredProfit = {
+  branch_id: string;
+  period_month: string;
+  net_profit: number;
+  gross_income: number | null;
+  total_expenses: number | null;
+};
 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-  const end = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
+  // The latest month any branch has declared. Profit is reported after a month
+  // closes, so "this month" is almost always empty — showing the most recent
+  // declared month is what an admin actually wants to see.
+  const { data: latest } = await supabase
+    .from('monthly_profits')
+    .select('period_month')
+    .order('period_month', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ period_month: string }>();
+  const latestMonth = latest?.period_month ?? null;
 
   // Active branches
   const { data: branches } = await supabase
@@ -20,26 +34,35 @@ export default async function DashboardPage() {
     .eq('is_active', true)
     .order('name');
 
-  // Per-branch month-to-date P&L + active shareholder count
+  // Declared profit for that month, all branches in one read
+  const { data: declared } = latestMonth
+    ? await supabase
+        .from('monthly_profits')
+        .select('branch_id, period_month, net_profit, gross_income, total_expenses')
+        .eq('period_month', latestMonth)
+    : { data: [] as DeclaredProfit[] };
+
+  const byBranch = new Map<string, DeclaredProfit>(
+    ((declared ?? []) as DeclaredProfit[]).map((d) => [d.branch_id, d]),
+  );
+
+  // Per-branch declared profit + active shareholder count
   const branchData = await Promise.all(
     (branches ?? []).map(async (b) => {
-      const [{ data: pnl }, { count: shCount }] = await Promise.all([
-        supabase
-          .rpc('compute_period_pnl', { p_branch: b.id, p_start: start, p_end: end })
-          .single<Pnl>(),
-        supabase
-          .from('shareholders')
-          .select('*', { count: 'exact', head: true })
-          .eq('is_active', true)
-          .eq('branch_id', b.id),
-      ]);
+      const { count: shCount } = await supabase
+        .from('shareholders')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true)
+        .eq('branch_id', b.id);
+      const d = byBranch.get(b.id as string);
       return {
         id: b.id as string,
         name: b.name as string,
         location: (b.location as string | null) ?? null,
-        income: Number(pnl?.income ?? 0),
-        expenses: Number(pnl?.expenses ?? 0),
-        net: Number(pnl?.net_profit ?? 0),
+        declared: Boolean(d),
+        income: d?.gross_income == null ? null : Number(d.gross_income),
+        expenses: d?.total_expenses == null ? null : Number(d.total_expenses),
+        net: Number(d?.net_profit ?? 0),
         shCount: shCount ?? 0,
       };
     }),
@@ -48,12 +71,13 @@ export default async function DashboardPage() {
   // Combined totals across branches
   const totals = branchData.reduce(
     (a, b) => ({
-      income: a.income + b.income,
-      expenses: a.expenses + b.expenses,
+      income: a.income + (b.income ?? 0),
+      expenses: a.expenses + (b.expenses ?? 0),
       net: a.net + b.net,
       sh: a.sh + b.shCount,
+      declared: a.declared + (b.declared ? 1 : 0),
     }),
-    { income: 0, expenses: 0, net: 0, sh: 0 },
+    { income: 0, expenses: 0, net: 0, sh: 0, declared: 0 },
   );
 
   // Last 12 months (all branches combined)
@@ -84,23 +108,34 @@ export default async function DashboardPage() {
 
       {/* Combined KPIs (all branches) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="kpi"><span className="kpi-label">Income (MTD)</span><span className="kpi-value">{formatMoney(totals.income)}</span></div>
-        <div className="kpi"><span className="kpi-label">Expenses (MTD)</span><span className="kpi-value">{formatMoney(totals.expenses)}</span></div>
-        <div className="kpi"><span className="kpi-label">Net Profit (MTD)</span><span className="kpi-value">{formatMoney(totals.net)}</span></div>
+        <div className="kpi">
+          <span className="kpi-label">
+            Declared Profit{latestMonth ? ` · ${formatMonth(latestMonth)}` : ''}
+          </span>
+          <span className="kpi-value">{formatMoney(totals.net)}</span>
+        </div>
+        <div className="kpi">
+          <span className="kpi-label">Branches Reported</span>
+          <span className="kpi-value">{totals.declared} / {branchData.length}</span>
+        </div>
         <div className="kpi"><span className="kpi-label">Active Shareholders</span><span className="kpi-value">{totals.sh}</span></div>
+        <div className="kpi">
+          <span className="kpi-label">Reported Income</span>
+          <span className="kpi-value">{totals.income > 0 ? formatMoney(totals.income) : '—'}</span>
+        </div>
       </div>
 
       {/* Per-branch cards */}
       <section>
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-3">
-          By Branch · This Month
+          By Branch{latestMonth ? ` · ${formatMonth(latestMonth)}` : ''}
         </h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
           {branchData.map((b) => (
             <div key={b.id} className="card">
               <div className="mb-4">
                 <div className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
-                  This month
+                  {latestMonth ? formatMonth(latestMonth) : 'No month declared'}
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mt-0.5">{b.name}</h3>
                 <div className="text-xs text-slate-500 mt-0.5">
@@ -108,17 +143,34 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Tile icon={TrendingUp}   tone="green" label="Income"       value={formatMoney(b.income)} />
-                <Tile icon={TrendingDown} tone="red"   label="Expenses"     value={formatMoney(b.expenses)} />
+                {/* Net profit leads: it is the declared figure everything derives
+                    from. Income and expenses are optional context, shown only
+                    when the branch actually reported them. */}
                 <Tile
                   icon={Wallet}
                   tone="blue"
-                  label="Net Profit"
-                  value={formatMoney(b.net)}
-                  valueClass={b.net >= 0 ? 'text-emerald-700' : 'text-red-600'}
+                  label="Declared Profit"
+                  value={b.declared ? formatMoney(b.net) : 'Not reported'}
+                  valueClass={
+                    !b.declared ? 'text-slate-400' : b.net >= 0 ? 'text-emerald-700' : 'text-red-600'
+                  }
                 />
                 <Tile icon={Users} tone="gold" label="Shareholders" value={String(b.shCount)} />
+                {b.income != null && (
+                  <Tile icon={TrendingUp} tone="green" label="Income" value={formatMoney(b.income)} />
+                )}
+                {b.expenses != null && (
+                  <Tile icon={TrendingDown} tone="red" label="Expenses" value={formatMoney(b.expenses)} />
+                )}
               </div>
+              {!b.declared && (
+                <Link
+                  href="/admin/monthly-profit"
+                  className="mt-3 inline-block text-xs text-brand-700 hover:underline"
+                >
+                  Declare this branch&apos;s profit →
+                </Link>
+              )}
             </div>
           ))}
           {branchData.length === 0 && (
@@ -129,7 +181,7 @@ export default async function DashboardPage() {
 
       {/* Last 12 months */}
       <div className="card">
-        <h2 className="font-semibold mb-3">Last 12 months (all branches combined)</h2>
+        <h2 className="font-semibold mb-3">Declared profit by month (all branches combined)</h2>
         <table className="tbl">
           <thead>
             <tr>
@@ -142,7 +194,7 @@ export default async function DashboardPage() {
           <tbody>
             {monthly.map((m) => (
               <tr key={m.month}>
-                <td>{new Date(m.month + 'T00:00:00Z').toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+                <td>{formatMonth(m.month)}</td>
                 <td className="text-right tabular-nums">{formatMoney(m.income)}</td>
                 <td className="text-right tabular-nums">{formatMoney(m.expenses)}</td>
                 <td className={`text-right tabular-nums font-medium ${m.net_profit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
@@ -151,7 +203,7 @@ export default async function DashboardPage() {
               </tr>
             ))}
             {monthly.length === 0 && (
-              <tr><td colSpan={4} className="text-slate-400 py-6 text-center">No transactions yet — add some in Transactions</td></tr>
+              <tr><td colSpan={4} className="text-slate-400 py-6 text-center">No profit declared yet — add a month in Monthly Profit</td></tr>
             )}
           </tbody>
         </table>
