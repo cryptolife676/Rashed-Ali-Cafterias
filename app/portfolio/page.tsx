@@ -55,7 +55,7 @@ export default async function PortfolioPage() {
       supabase
         .from('distribution_items')
         .select(
-          'id, computed_amount, manual_adjustment, final_amount, paid_at, shareholder_id, run:distribution_runs(period_start, period_end, status, branch_id)',
+          'id, computed_amount, manual_adjustment, final_amount, paid_at, shareholder_id, run:distribution_runs(period_start, period_end, status, branch_id, is_backfill)',
         )
         .in('shareholder_id', shareholderIds)
         .order('created_at', { ascending: false }),
@@ -138,7 +138,17 @@ export default async function PortfolioPage() {
                 <tr key={it.id}>
                   <td className="text-slate-500">{shBranch.get(it.shareholder_id) ?? '—'}</td>
                   <td>{it.run?.period_start ? formatMonth(it.run.period_start) : '—'}</td>
-                  <td>{it.run?.status}</td>
+                  <td>
+                    {it.run?.status}
+                    {it.run?.is_backfill && (
+                      <span
+                        className="ml-1 text-[10px] uppercase tracking-wide text-amber-700"
+                        title="Imported from records that predate this system"
+                      >
+                        historical
+                      </span>
+                    )}
+                  </td>
                   <td className="text-right tabular-nums">{formatMoney(it.computed_amount)}</td>
                   <td className="text-right tabular-nums">{formatMoney(it.manual_adjustment)}</td>
                   <td className="text-right tabular-nums font-medium">{formatMoney(it.final_amount)}</td>

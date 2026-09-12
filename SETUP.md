@@ -9,7 +9,7 @@ Production-grade Next.js 15 + Supabase app: accounting, profit sharing, sharehol
 ```
 app/
   (admin pages — gated by middleware + requireStaff/Admin)
-    dashboard/  monthly-profit/  shareholders/  distributions/
+    dashboard/  monthly-profit/  shareholders/  distributions/  payouts/
     reports/    audit-logs/
   portfolio/                        # shareholder-only page
   login/
@@ -26,7 +26,7 @@ lib/
   validators/ zod schemas
   accounting/ distribution.ts (largest-remainder allocation)
 
-server/actions/   monthly-profit, shareholders, distributions  ('use server')
+server/actions/   monthly-profit, shareholders, distributions, payouts  ('use server')
 components/       Sidebar, InactivityBanner
 
 supabase/migrations/                     # 0001 schema/RLS/triggers → 0007 monthly profit
@@ -148,7 +148,17 @@ sales and costs; what it reports here is one figure per month.
    - Engine reads the declared `net_profit`, snapshots ownership %, allocates with largest-remainder rounding (sum = exact net to the cent).
 2. Review per-shareholder amounts. Optionally enter `manual_adjustment` per item.
 3. **Approve** → that month's declared profit becomes `is_locked = true`; status → `approved`.
-4. **Pay out** → creates `withdrawals` rows with `source='distribution'`, sets `paid_at`, status → `paid`. Shareholders can now see it in their portfolio.
+4. **Pay out** → settles every outstanding item at once: creates `withdrawals` rows with `source='distribution'`, sets `paid_at`, status → `paid`. Shareholders then see it in their portfolio.
+
+### Handing the money over
+Some members are paid through an intermediary rather than directly — set
+**Payout handed over by** on the shareholder page (`shareholders.payout_via_profile_id`).
+
+**Payouts** lists every payout from an approved run, with a *My handovers only*
+filter and a running **remaining to pay** total. Tick the ones you have forwarded
+and press *Mark forwarded*; a run is promoted to `paid` only once nothing is left
+outstanding, so partial handovers are the normal case, not an error. *Undo* on a
+row reverses one handover and deletes its withdrawal (admin only, audit-logged).
 
 ### Shareholder
 - Logs in → redirected to `/portfolio`.
@@ -158,6 +168,7 @@ sales and costs; what it reports here is one figure per month.
 
 ## 6. Key design decisions
 
+- **Historical runs are labelled, never silently mixed in.** `distribution_runs.is_backfill` marks months imported from records that predate this system (migration 0009 loads 25 months of Ummu Gaffa payouts for Naser and Mukthar). Their `net_profit` is the total for *only the members listed*, not the branch's profit, and their items are not a 100% allocation — so every view that shows them says so.
 - **Snapshots, not live calculations.** `distribution_items.ownership_pct_snapshot` and `computed_amount` are frozen at draft creation. Changing a shareholder's % later does NOT rewrite history.
 - **Largest-remainder allocation** ensures `Σ amounts == net_profit` exactly. Plain `pct/100*net` would lose pennies.
 - **Declared profit, not a derived ledger.** The branches keep their own books; this app stores one `monthly_profits` row per branch per month and distributes from it. (Migration 0007 replaced a daily `transactions` ledger that nobody was going to fill in.)

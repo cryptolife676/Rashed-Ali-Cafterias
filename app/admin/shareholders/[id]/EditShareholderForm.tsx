@@ -11,11 +11,13 @@ type Props = {
     ownership_pct: number;
     branch_id: string | null;
     is_active: boolean;
+    payout_via_profile_id: string | null;
   };
   branches: { id: string; name: string }[];
+  handlers: { id: string; full_name: string; role: string }[];
 };
 
-export default function EditShareholderForm({ shareholder, branches }: Props) {
+export default function EditShareholderForm({ shareholder, branches, handlers }: Props) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
@@ -30,6 +32,7 @@ export default function EditShareholderForm({ shareholder, branches }: Props) {
       ownership_pct: fd.get('ownership_pct') as string,
       branch_id: (fd.get('branch_id') as string) || null,
       is_active: fd.get('is_active') === 'on',
+      payout_via_profile_id: (fd.get('payout_via_profile_id') as string) || null,
     };
     start(async () => {
       const res = await updateShareholder(payload);
@@ -82,6 +85,21 @@ export default function EditShareholderForm({ shareholder, branches }: Props) {
           <option value="">—</option>
           {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
+      </div>
+      <div className="md:col-span-2">
+        <label className="label">Payout handed over by</label>
+        <select
+          className="input"
+          name="payout_via_profile_id"
+          defaultValue={shareholder.payout_via_profile_id ?? ''}
+        >
+          <option value="">Paid directly — no intermediary</option>
+          {handlers.map((h) => <option key={h.id} value={h.id}>{h.full_name}</option>)}
+        </select>
+        <p className="mt-1 text-xs text-slate-500">
+          If someone forwards this member&apos;s money in person, name them here. Their
+          outstanding handovers appear on the Payouts page.
+        </p>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="is_active" defaultChecked={shareholder.is_active} />

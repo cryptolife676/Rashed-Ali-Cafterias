@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LayoutDashboard, CalendarRange, Users, PieChart, BadgeDollarSign, FileText, ScrollText } from 'lucide-react';
+import { LayoutDashboard, CalendarRange, Users, PieChart, BadgeDollarSign, HandCoins, FileText, ScrollText } from 'lucide-react';
 
 const items = [
   { href: '/admin/dashboard',      label: 'Dashboard',      icon: LayoutDashboard },
@@ -7,6 +7,7 @@ const items = [
   { href: '/admin/shareholders',   label: 'Shareholders',   icon: Users },
   { href: '/admin/portfolios',     label: 'Portfolios',     icon: PieChart },
   { href: '/admin/distributions',  label: 'Distributions',  icon: BadgeDollarSign },
+  { href: '/admin/payouts',        label: 'Payouts',        icon: HandCoins },
   { href: '/admin/reports',        label: 'Reports',        icon: FileText },
   { href: '/admin/audit-logs',     label: 'Audit Logs',     icon: ScrollText },
 ];

@@ -12,6 +12,9 @@ export const ShareholderInput = z.object({
   ownership_pct: ownershipPct,
   is_active: z.boolean().default(true),
   joined_at: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  // Who physically forwards this member's payouts. Per shareholder ROW, not
+  // per person: someone holding shares in two branches has two obligations.
+  payout_via_profile_id: z.string().uuid().nullable().optional(),
 });
 
 export const ShareholderUpdate = ShareholderInput.partial().extend({

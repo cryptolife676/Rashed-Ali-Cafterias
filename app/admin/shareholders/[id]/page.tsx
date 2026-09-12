@@ -21,7 +21,7 @@ export default async function ShareholderDetailPage({
   const [{ data: sh }, { data: branches }, { data: investments }, { data: withdrawals }, { data: summary }] = await Promise.all([
     supabase
       .from('shareholders')
-      .select('id, display_name, ownership_pct, branch_id, profile_id, is_active, joined_at')
+      .select('id, display_name, ownership_pct, branch_id, profile_id, is_active, joined_at, payout_via_profile_id')
       .eq('id', id)
       .maybeSingle(),
     supabase.from('branches').select('id, name').order('name'),
@@ -43,6 +43,14 @@ export default async function ShareholderDetailPage({
   ]);
 
   if (!sh) notFound();
+
+  // Staff who can act as a payout intermediary (someone hands cash over in person).
+  const { data: handlers } = await supabase
+    .from('profiles')
+    .select('id, full_name, role')
+    .in('role', ['super_admin', 'admin', 'accountant'])
+    .eq('is_active', true)
+    .order('full_name');
 
   const branchName = branches?.find((b) => b.id === sh.branch_id)?.name ?? '—';
   const balance =
@@ -83,8 +91,10 @@ export default async function ShareholderDetailPage({
             ownership_pct: Number(sh.ownership_pct),
             branch_id: sh.branch_id,
             is_active: sh.is_active,
+            payout_via_profile_id: sh.payout_via_profile_id ?? null,
           }}
           branches={branches ?? []}
+          handlers={handlers ?? []}
         />
       </div>
 
