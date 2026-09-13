@@ -25,7 +25,12 @@ type GroupMember = {
   shareholder_id: string;
   display_name: string;
   ownership_pct: number;
+  // Divides the team amount; null/absent means "use ownership" (and keeps this
+  // working against a database without the column).
+  split_weight?: number | null;
 };
+
+const weightOf = (m: GroupMember) => Number(m.split_weight ?? m.ownership_pct);
 
 export async function createDistributionRun(input: unknown): Promise<ActionResult<{ run_id: string }>> {
   const user = await requireAdmin();
@@ -97,7 +102,7 @@ export async function createDistributionRun(input: unknown): Promise<ActionResul
   //    passing raw branch percentages yields each member's share of the
   //    group (Ummu Gaffa: 2.8966 and 1.8104 -> 61.5381% / 38.4619%), and
   //    the amounts sum to the declared figure exactly.
-  const weights = eligible.map((s) => Number(s.ownership_pct));
+  const weights = eligible.map(weightOf);
   const weightTotal = weights.reduce((a, b) => a + b, 0);
   const amounts = allocateLargestRemainder(amount, weights);
 
@@ -109,7 +114,7 @@ export async function createDistributionRun(input: unknown): Promise<ActionResul
   //    (matching the historical runs backfilled in 0009).
   const itemsJson = eligible.map((s, i) => ({
     shareholder_id: s.shareholder_id,
-    ownership_pct_snapshot: round2((Number(s.ownership_pct) / weightTotal) * 100),
+    ownership_pct_snapshot: round2((weightOf(s) / weightTotal) * 100),
     computed_amount: amounts[i],
   }));
 

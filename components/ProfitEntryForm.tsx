@@ -12,6 +12,9 @@ export type TeamMember = {
   shareholder_id: string;
   display_name: string;
   ownership_pct: number;
+  // What a team amount is divided by: ownership, unless the branch sets its own
+  // weights (Ajwa: Ajmal 10,000 : Naser 5,000).
+  split_weight: number;
 };
 
 export type DeclaredMonth = {
@@ -67,12 +70,13 @@ export default function ProfitEntryForm({
   const preview = useMemo(() => {
     const total = Number(amount);
     if (!branchId || !Number.isFinite(total) || total <= 0 || members.length === 0) return null;
-    const weights = members.map((m) => Number(m.ownership_pct));
+    const weights = members.map((m) => Number(m.split_weight));
     const weightTotal = weights.reduce((a, b) => a + b, 0);
+    if (weightTotal <= 0) return null;
     const amounts = allocateLargestRemainder(total, weights);
     return members.map((m, i) => ({
       name: m.display_name,
-      share: (Number(m.ownership_pct) / weightTotal) * 100,
+      share: (Number(m.split_weight) / weightTotal) * 100,
       amount: amounts[i],
     }));
   }, [amount, branchId, members]);

@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
-const ownershipPct = z.coerce.number().positive().max(100).refine(
+// 0 is allowed: a team member can hold a row before their percentage is agreed
+// (Ajwa), splitting by shareholders.split_weight in the meantime.
+const ownershipPct = z.coerce.number().min(0, 'Ownership cannot be negative').max(100).refine(
   (v) => Math.abs(Math.round(v * 10000) / 10000 - v) < 1e-9,
   'ownership_pct supports at most 4 decimal places',
 );
