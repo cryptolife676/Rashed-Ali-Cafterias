@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
-import { sumBy, distributionTotals } from '@/lib/totals';
+import { sumBy, distributionTotals, sortDistributionItems } from '@/lib/totals';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,7 +88,7 @@ export default async function PortfoliosPage({
       summaries: summaries ?? [],
       investments: investments ?? [],
       withdrawals: withdrawals ?? [],
-      items: items ?? [],
+      items: sortDistributionItems(items ?? [], (it: any) => shBranch.get(it.shareholder_id) ?? ''),
       totals: { invested, earned, withdrawn, balance: invested + earned - withdrawn },
       shBranch,
     };

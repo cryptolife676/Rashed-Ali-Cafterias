@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { requireShareholder } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
-import { sumBy, distributionTotals } from '@/lib/totals';
+import { sumBy, distributionTotals, sortDistributionItems } from '@/lib/totals';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +73,10 @@ export default async function PortfolioPage() {
   const shBranch = new Map(
     shareholderRows.map((s) => [s.id, (s.branch as unknown as { name: string } | null)?.name ?? '—']),
   );
+
+  // Newest month first; the query returns them in creation order, which put
+  // the 2025 imports ahead of 2023 and a voided draft at the bottom.
+  const sortedItems = sortDistributionItems(items ?? [], (it) => shBranch.get(it.shareholder_id) ?? '');
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -155,7 +159,7 @@ export default async function PortfolioPage() {
               </tr>
             </thead>
             <tbody>
-              {(items ?? []).map((it: any) => (
+              {sortedItems.map((it: any) => (
                 <tr key={it.id}>
                   <td className="text-slate-500">{shBranch.get(it.shareholder_id) ?? '—'}</td>
                   <td>{it.run?.period_start ? formatMonth(it.run.period_start) : '—'}</td>
@@ -176,12 +180,12 @@ export default async function PortfolioPage() {
                   <td>{it.paid_at ? formatDate(it.paid_at) : '—'}</td>
                 </tr>
               ))}
-              {(items ?? []).length === 0 && (
+              {sortedItems.length === 0 && (
                 <tr><td colSpan={7} className="text-slate-400 py-4 text-center">No distributions yet</td></tr>
               )}
             </tbody>
-            {(items ?? []).length > 0 && (() => {
-              const t = distributionTotals((items ?? []));
+            {sortedItems.length > 0 && (() => {
+              const t = distributionTotals(sortedItems);
               return (
                 <tfoot>
                   <tr>
