@@ -93,22 +93,34 @@ export default async function DashboardPage() {
     { net: 0, sh: 0, declared: 0 },
   );
 
-  // Last 12 months (all branches combined)
+  // Last 12 months, per branch and combined. A branch with no figure for a
+  // month is left empty (shown as —) so it can't be mistaken for a month that
+  // was entered as 0.00, like Ummu Gaffa's NIL months.
   const { data: rawMonthly } = await supabase
     .from('v_monthly_pnl')
-    .select('month, declared_amount')
+    .select('month, branch_id, declared_amount')
     .order('month', { ascending: false })
-    .limit(60);
+    .limit(240);
 
-  const monthMap = new Map<string, number>();
+  const monthMap = new Map<string, Map<string, number>>();
   for (const row of rawMonthly ?? []) {
     const key = row.month as string;
-    monthMap.set(key, (monthMap.get(key) ?? 0) + Number(row.declared_amount));
+    const perBranch = monthMap.get(key) ?? new Map<string, number>();
+    const bid = row.branch_id as string;
+    perBranch.set(bid, (perBranch.get(bid) ?? 0) + Number(row.declared_amount));
+    monthMap.set(key, perBranch);
   }
   const monthly = Array.from(monthMap.entries())
     .sort(([a], [b]) => b.localeCompare(a))
     .slice(0, 12)
-    .map(([month, total]) => ({ month, total }));
+    .map(([month, perBranch]) => ({
+      month,
+      perBranch,
+      total: Array.from(perBranch.values()).reduce((a, v) => a + v, 0),
+    }));
+  const branchColumns = (branches ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
+  const columnTotal = (branchId: string) =>
+    monthly.reduce((a, m) => a + (m.perBranch.get(branchId) ?? 0), 0);
 
   return (
     <div className="space-y-8">
@@ -228,40 +240,60 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      {/* Last 12 months */}
+      {/* Last 12 months, per branch */}
       <div className="card">
-        <h2 className="font-semibold mb-3">Declared by month (all branches combined)</h2>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Month</th>
-              <th className="text-right">Amount for the group</th>
-            </tr>
-          </thead>
-          <tbody>
-            {monthly.map((m) => (
-              <tr key={m.month}>
-                <td>{formatMonth(m.month)}</td>
-                <td className={`text-right tabular-nums font-medium ${m.total >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                  {formatMoney(m.total)}
-                </td>
-              </tr>
-            ))}
-            {monthly.length === 0 && (
-              <tr><td colSpan={2} className="text-slate-400 py-6 text-center">Nothing declared yet — add a month in Monthly Profit</td></tr>
-            )}
-          </tbody>
-          {monthly.length > 0 && (
-            <tfoot>
+        <h2 className="font-semibold mb-3">Declared by month</h2>
+        <div className="overflow-x-auto">
+          <table className="tbl">
+            <thead>
               <tr>
-                <td>Total ({monthly.length} months)</td>
-                <td className="text-right tabular-nums">
-                  {formatMoney(monthly.reduce((a, m) => a + m.total, 0))}
-                </td>
+                <th>Month</th>
+                {branchColumns.map((b) => (
+                  <th key={b.id} className="text-right">{b.name}</th>
+                ))}
+                <th className="text-right">Total</th>
               </tr>
-            </tfoot>
-          )}
-        </table>
+            </thead>
+            <tbody>
+              {monthly.map((m) => (
+                <tr key={m.month}>
+                  <td className="whitespace-nowrap">{formatMonth(m.month)}</td>
+                  {branchColumns.map((b) => {
+                    const v = m.perBranch.get(b.id);
+                    return (
+                      <td key={b.id} className="text-right tabular-nums">
+                        {v === undefined ? <span className="text-slate-300">—</span> : formatMoney(v)}
+                      </td>
+                    );
+                  })}
+                  <td className={`text-right tabular-nums font-medium ${m.total >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {formatMoney(m.total)}
+                  </td>
+                </tr>
+              ))}
+              {monthly.length === 0 && (
+                <tr>
+                  <td colSpan={branchColumns.length + 2} className="text-slate-400 py-6 text-center">
+                    Nothing declared yet — enter a month above
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {monthly.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td>Total ({monthly.length} months)</td>
+                  {branchColumns.map((b) => (
+                    <td key={b.id} className="text-right tabular-nums">{formatMoney(columnTotal(b.id))}</td>
+                  ))}
+                  <td className="text-right tabular-nums">
+                    {formatMoney(monthly.reduce((a, m) => a + m.total, 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
       </div>
     </div>
   );
