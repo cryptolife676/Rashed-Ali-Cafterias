@@ -55,8 +55,11 @@ export function sortDistributionItems<T extends { run?: any }>(
 ): T[] {
   const voidRank = (it: T) => (runOf(it)?.status === 'void' ? 1 : 0);
   return [...items].sort((a, b) => {
-    const pa = runOf(a)?.period_start ?? '';
-    const pb = runOf(b)?.period_start ?? '';
+    // Compare the month, not the full date: a run can start mid-month (the
+    // voided draft began 2026-03-31), which would otherwise outrank the 1st
+    // and put a cancelled run above the real one for the same month.
+    const pa = (runOf(a)?.period_start ?? '').slice(0, 7);
+    const pb = (runOf(b)?.period_start ?? '').slice(0, 7);
     if (pa !== pb) return pb.localeCompare(pa);
     const v = voidRank(a) - voidRank(b);
     if (v !== 0) return v;
