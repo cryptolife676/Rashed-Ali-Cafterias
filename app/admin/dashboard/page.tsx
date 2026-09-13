@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatMonth } from '@/lib/utils';
+import { getTeamByBranch } from '@/lib/team';
+import { minMonth, nextMonth, previousMonthDubai } from '@/lib/months';
+import ProfitEntryForm, { type DeclaredMonth } from '@/components/ProfitEntryForm';
 import { Wallet, Users, type LucideIcon } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +35,25 @@ export default async function DashboardPage() {
     .eq('is_active', true)
     .order('name');
 
+  // The team per branch comes through the security-definer lookup. Counting
+  // shareholders directly is filtered by RLS to the caller's own rows, which
+  // showed Shabeer 0 members everywhere and blocked his entries.
+  const branchIds = (branches ?? []).map((b) => b.id as string);
+  const [team, { data: allDeclared }] = await Promise.all([
+    getTeamByBranch(supabase, branchIds),
+    supabase
+      .from('monthly_profits')
+      .select('branch_id, period_month, declared_amount, is_locked')
+      .order('period_month', { ascending: false }),
+  ]);
+  const declaredList: DeclaredMonth[] = (allDeclared ?? []).map((d) => ({
+    branch_id: d.branch_id as string,
+    period_month: d.period_month as string,
+    declared_amount: Number(d.declared_amount),
+    is_locked: Boolean(d.is_locked),
+  }));
+  const lastMonth = previousMonthDubai();
+
   // Declared figures for that month, all branches in one read
   const { data: declared } = latestMonth
     ? await supabase
@@ -47,14 +69,8 @@ export default async function DashboardPage() {
   // Per-branch declared profit + active shareholder count
   const branchData = await Promise.all(
     (branches ?? []).map(async (b) => {
-      // Count only the tracked members — the people the declared figure is
-      // split between — not every shareholder on the branch's cap table.
-      const { count: shCount } = await supabase
-        .from('shareholders')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true)
-        .eq('branch_id', b.id)
-        .not('payout_via_profile_id', 'is', null);
+      // Team members only — the people the declared figure is split between.
+      const shCount = team.filter((m) => m.branch_id === b.id).length;
       const d = byBranch.get(b.id as string);
       return {
         id: b.id as string,
@@ -98,6 +114,57 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 
+      {/* Entering the month's figure is why Shabeer opens the site, so it
+          comes first: one card per cafeteria, month already suggested. */}
+      <section>
+        <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-3">
+          Enter monthly profit
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+          {(branches ?? []).map((b) => {
+            const id = b.id as string;
+            const hasTeam = team.some((m) => m.branch_id === id);
+            // declaredList is newest first, so the first match is the latest.
+            const latest = declaredList.find((d) => d.branch_id === id);
+            const suggested = latest
+              ? minMonth(nextMonth(latest.period_month.slice(0, 7)), lastMonth)
+              : lastMonth;
+            return (
+              <div key={id} className="card space-y-3">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">{b.name as string}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {latest ? (
+                      <>
+                        Last entered: <b>{formatMonth(latest.period_month)}</b> ·{' '}
+                        {formatMoney(latest.declared_amount)}
+                      </>
+                    ) : (
+                      'Nothing entered yet'
+                    )}
+                  </p>
+                </div>
+                {hasTeam ? (
+                  <ProfitEntryForm
+                    compact
+                    branches={[{ id, name: b.name as string }]}
+                    fixedBranchId={id}
+                    team={team}
+                    declared={declaredList}
+                    defaultMonth={suggested}
+                    maxMonth={lastMonth}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No team members in this branch yet, so there is nothing to enter here.
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Combined KPIs (all branches) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="kpi">
@@ -127,7 +194,7 @@ export default async function DashboardPage() {
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mt-0.5">{b.name}</h3>
                 <div className="text-xs text-slate-500 mt-0.5">
-                  {b.location ?? '—'} · <b>{b.shCount}</b> shareholders
+                  {b.location ?? '—'} · <b>{b.shCount}</b> team members
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -2,13 +2,16 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatMonth } from '@/lib/utils';
 import { sumBy } from '@/lib/totals';
-import MonthlyProfitForm, { type GroupMember } from './MonthlyProfitForm';
+import ProfitEntryForm, { type DeclaredMonth } from '@/components/ProfitEntryForm';
+import { getTeamByBranch } from '@/lib/team';
+import { previousMonthDubai } from '@/lib/months';
 import ProfitRowActions from './ProfitRowActions';
 
 export const dynamic = 'force-dynamic';
 
 type Row = {
   id: string;
+  branch_id: string;
   period_month: string;
   declared_amount: number;
   notes: string | null;
@@ -19,36 +22,37 @@ type Row = {
 
 export default async function MonthlyProfitPage() {
   const supabase = await createClient();
-  const [{ data: profits }, { data: branches }, { data: members }] = await Promise.all([
+  const [{ data: profits }, { data: branches }] = await Promise.all([
     supabase
       .from('monthly_profits')
       .select(
-        'id, period_month, declared_amount, notes, is_locked, branch:branches(name), runs:distribution_runs(id, status)',
+        'id, branch_id, period_month, declared_amount, notes, is_locked, branch:branches(name), runs:distribution_runs(id, status)',
       )
       .order('period_month', { ascending: false })
       .limit(100),
     supabase.from('branches').select('id, name').eq('is_active', true).order('name'),
-    // The tracked members, per branch — the people the declared figure is
-    // divided between. Same set the distribution engine uses.
-    supabase
-      .from('shareholders')
-      .select('id, display_name, ownership_pct, branch_id')
-      .eq('is_active', true)
-      .not('payout_via_profile_id', 'is', null)
-      .order('ownership_pct', { ascending: false }),
   ]);
 
   const rows = (profits ?? []) as unknown as Row[];
-  const group: GroupMember[] = (members ?? []).map((m: any) => ({
-    branch_id: m.branch_id as string,
-    shareholder_id: m.id as string,
-    display_name: m.display_name as string,
-    ownership_pct: Number(m.ownership_pct),
+  const branchList = (branches ?? []).map((b) => ({ id: b.id as string, name: b.name as string }));
+  // Team via the security-definer lookup; a direct shareholders read is empty
+  // for non-admins under RLS.
+  const team = await getTeamByBranch(supabase, branchList.map((b) => b.id));
+  const declaredList: DeclaredMonth[] = rows.map((r) => ({
+    branch_id: r.branch_id,
+    period_month: r.period_month,
+    declared_amount: Number(r.declared_amount),
+    is_locked: r.is_locked,
   }));
+  const lastMonth = previousMonthDubai();
 
-  // The admin's real to-do list: declared but not yet distributed.
+  // The admin's real to-do list: declared but not yet distributed. A locked
+  // month has been distributed even when RLS hides its run from non-admins.
   const pending = rows.filter(
-    (r) => !(r.runs ?? []).some((run) => run.status !== 'void') && Number(r.declared_amount) > 0,
+    (r) =>
+      !r.is_locked &&
+      !(r.runs ?? []).some((run) => run.status !== 'void') &&
+      Number(r.declared_amount) > 0,
   );
 
   return (
@@ -62,7 +66,13 @@ export default async function MonthlyProfitPage() {
         </p>
       </div>
 
-      <MonthlyProfitForm branches={branches ?? []} group={group} />
+      <ProfitEntryForm
+        branches={branchList}
+        team={team}
+        declared={declaredList}
+        defaultMonth={lastMonth}
+        maxMonth={lastMonth}
+      />
 
       {pending.length > 0 && (
         <div className="card border-l-4 border-amber-400">
@@ -135,6 +145,10 @@ export default async function MonthlyProfitPage() {
                                 : 'draft run'}
                           </span>
                         </Link>
+                      ) : r.is_locked ? (
+                        // Non-admins can't read distribution_runs under RLS, so a
+                        // distributed month shows no run; the lock still tells.
+                        <span className="text-xs text-blue-700">distributed</span>
                       ) : amt > 0 ? (
                         <span className="text-xs text-slate-400">not distributed</span>
                       ) : (

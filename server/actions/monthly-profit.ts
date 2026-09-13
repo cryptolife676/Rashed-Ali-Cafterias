@@ -9,6 +9,7 @@ import {
   MonthlyProfitUpdate,
 } from '@/lib/validators/monthly-profit';
 import type { ActionResult } from './types';
+import { getTeamByBranch } from '@/lib/team';
 
 const idSchema = z.string().uuid('Invalid ID');
 
@@ -39,14 +40,16 @@ export async function upsertMonthlyProfit(
   // Refuse a branch with nobody to divide the figure between. Without this
   // the row saves happily and only fails later at distribution time, leaving
   // an amount recorded against a branch it can never be paid out for.
-  const { count: members, error: memberErr } = await supabase
-    .from('shareholders')
-    .select('*', { count: 'exact', head: true })
-    .eq('branch_id', branch_id)
-    .eq('is_active', true)
-    .not('payout_via_profile_id', 'is', null);
-  if (memberErr) return { ok: false, error: memberErr.message };
-  if ((members ?? 0) === 0) {
+  // Through the security-definer lookup: an accountant can read only his own
+  // shareholder rows, so counting shareholders directly always found nobody
+  // and refused every save he made.
+  let members = 0;
+  try {
+    members = (await getTeamByBranch(supabase, [branch_id])).length;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : 'Could not load team members' };
+  }
+  if (members === 0) {
     return {
       ok: false,
       error:
