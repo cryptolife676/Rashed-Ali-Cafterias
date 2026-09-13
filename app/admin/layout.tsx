@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireStaff } from '@/lib/auth/guards';
 import Sidebar from '@/components/Sidebar';
 import InactivityBanner from '@/components/InactivityBanner';
@@ -6,14 +7,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await requireStaff();
   return (
     <div className="flex">
-      <Sidebar />
+      <Sidebar role={user.role} />
       <div className="flex-1 min-h-screen">
         <InactivityBanner />
         <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
           <div className="text-sm text-slate-500">Signed in as <b>{user.fullName}</b> · {user.role}</div>
-          <form action="/api/auth/signout" method="post">
-            <button className="btn-secondary text-xs">Sign out</button>
-          </form>
+          <div className="flex items-center gap-3">
+            <Link href="/account" className="btn-secondary text-xs">My account</Link>
+            <form action="/api/auth/signout" method="post">
+              <button className="btn-secondary text-xs">Sign out</button>
+            </form>
+          </div>
         </header>
         <main className="p-6">{children}</main>
       </div>

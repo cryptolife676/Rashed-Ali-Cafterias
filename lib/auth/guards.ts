@@ -42,6 +42,17 @@ export async function requireAdmin() {
   return u;
 }
 
+/**
+ * Stricter than requireAdmin: setting another person's password makes
+ * impersonation possible, so it is reserved for the owner account rather
+ * than every admin.
+ */
+export async function requireSuperAdmin() {
+  const u = await requireUser();
+  if (u.role !== 'super_admin') redirect('/admin/dashboard');
+  return u;
+}
+
 export async function requireStaff() {
   const u = await requireUser();
   if (!['super_admin', 'admin', 'accountant'].includes(u.role)) redirect('/portfolio');

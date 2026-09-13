@@ -9,8 +9,9 @@ Production-grade Next.js 15 + Supabase app: accounting, profit sharing, sharehol
 ```
 app/
   (admin pages — gated by middleware + requireStaff/Admin)
-    dashboard/  monthly-profit/  shareholders/  distributions/  payouts/
+    dashboard/  monthly-profit/  shareholders/  distributions/  payouts/  users/
     reports/    audit-logs/
+  account/                          # change your own password (any role)
   portfolio/                        # shareholder-only page
   login/
   api/
@@ -39,6 +40,10 @@ middleware.ts                            # auth gate
 - `accountant` — can declare monthly profit only
 - `shareholder` — can read own portfolio
 - `viewer` — default role for new sign-ups, but profile starts **inactive** until an admin promotes them. Inactive users have no DB read access via RLS.
+
+### Passwords
+- Anyone signed in can change their own at **/account** (linked as *My account* in both headers). Changing it requires the current password — a live session alone is not accepted as proof of identity, so an unattended browser cannot be used to take the account over. An account that only ever used Google sign-in has no password to verify, so it *sets* one instead; Google sign-in keeps working either way.
+- **super_admin only**: the **Users** page sets a password for someone who is locked out. It is deliberately not open to the `admin` role, because whoever sets a password can then sign in as that person. Every reset is written to `audit_logs` with the actor's name; the password itself is never logged or stored, and if the audit write fails the action reports that the password changed but the trail is missing.
 
 ### Reliability features
 - **Keep-alive**: `/api/cron/keep-alive` runs every 2 days, inserts a row into `keep_alive_logs` and updates `system_activity.last_keep_alive`. A real WRITE — Supabase counts this as activity.

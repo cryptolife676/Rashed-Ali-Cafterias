@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LayoutDashboard, CalendarRange, Users, PieChart, BadgeDollarSign, HandCoins, FileText, ScrollText } from 'lucide-react';
+import { LayoutDashboard, CalendarRange, Users, PieChart, BadgeDollarSign, HandCoins, FileText, ScrollText, KeyRound } from 'lucide-react';
 
 const items = [
   { href: '/admin/dashboard',      label: 'Dashboard',      icon: LayoutDashboard },
@@ -12,7 +12,12 @@ const items = [
   { href: '/admin/audit-logs',     label: 'Audit Logs',     icon: ScrollText },
 ];
 
-export default function Sidebar() {
+// Owner-only: setting another person's password is impersonation-capable.
+const superAdminItems = [
+  { href: '/admin/users',          label: 'Users',          icon: KeyRound },
+];
+
+export default function Sidebar({ role }: { role?: string }) {
   return (
     <aside className="w-64 shrink-0 min-h-screen flex flex-col" style={{ background: '#0c0b09' }}>
 
@@ -39,7 +44,7 @@ export default function Sidebar() {
         <p className="px-3 mb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(201,162,39,0.5)' }}>
           Navigation
         </p>
-        {items.map(({ href, label, icon: Icon }) => (
+        {[...items, ...(role === 'super_admin' ? superAdminItems : [])].map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

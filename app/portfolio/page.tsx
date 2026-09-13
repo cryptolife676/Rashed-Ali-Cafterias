@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { requireShareholder } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
@@ -86,9 +87,12 @@ export default async function PortfolioPage() {
             ))}
           </div>
         </div>
-        <form action="/api/auth/signout" method="post">
-          <button className="btn-secondary text-xs">Sign out</button>
-        </form>
+        <div className="flex items-center gap-3">
+          <Link href="/account" className="btn-secondary text-xs">My account</Link>
+          <form action="/api/auth/signout" method="post">
+            <button className="btn-secondary text-xs">Sign out</button>
+          </form>
+        </div>
       </header>
 
       <main className="p-6 space-y-6 max-w-5xl mx-auto">
