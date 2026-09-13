@@ -14,13 +14,17 @@ import type { ActionResult } from './types';
 
 const idSchema = z.string().uuid('Invalid ID');
 
-type DeclaredProfit = {
+type DeclaredAmount = {
   id: string;
   branch_id: string;
   period_month: string;
-  net_profit: number;
-  gross_income: number | null;
-  total_expenses: number | null;
+  declared_amount: number;
+};
+
+type GroupMember = {
+  shareholder_id: string;
+  display_name: string;
+  ownership_pct: number;
 };
 
 export async function createDistributionRun(input: unknown): Promise<ActionResult<{ run_id: string }>> {
@@ -31,30 +35,30 @@ export async function createDistributionRun(input: unknown): Promise<ActionResul
 
   const supabase = await createClient();
 
-  // 1) The month's declared profit. Not derived from a ledger any more —
-  //    the branch reports one figure and this is it.
-  const { data: profit, error: profitErr } = await supabase
+  // 1) The month's declared figure: what the payout group is collectively
+  //    owed for this branch. Not the branch's profit.
+  const { data: declared, error: declaredErr } = await supabase
     .from('monthly_profits')
-    .select('id, branch_id, period_month, net_profit, gross_income, total_expenses')
+    .select('id, branch_id, period_month, declared_amount')
     .eq('branch_id', branch_id)
     .eq('period_month', period_month)
-    .maybeSingle<DeclaredProfit>();
-  if (profitErr) return { ok: false, error: profitErr.message };
-  if (!profit) {
+    .maybeSingle<DeclaredAmount>();
+  if (declaredErr) return { ok: false, error: declaredErr.message };
+  if (!declared) {
     return {
       ok: false,
-      error: 'No profit has been declared for this branch and month. Add it on the Monthly Profit page first.',
+      error: 'Nothing has been declared for this branch and month. Add it on the Monthly Profit page first.',
     };
   }
 
-  const netProfit = round2(Number(profit.net_profit));
+  const amount = round2(Number(declared.declared_amount));
 
-  // 2) Reject zero/loss months explicitly — don't let admins approve a run
-  //    where every shareholder would silently receive 0.
-  if (netProfit <= 0) {
+  // 2) Reject zero/negative months explicitly — don't let admins approve a
+  //    run where every member would silently receive 0.
+  if (amount <= 0) {
     return {
       ok: false,
-      error: `This month's declared profit is ${netProfit.toFixed(2)} — there is nothing to distribute. Correct the figure on the Monthly Profit page, or skip this month.`,
+      error: `The declared amount for this month is ${amount.toFixed(2)} — there is nothing to distribute. Correct it on the Monthly Profit page, or skip this month.`,
     };
   }
 
@@ -63,7 +67,7 @@ export async function createDistributionRun(input: unknown): Promise<ActionResul
   const { count: liveRuns } = await supabase
     .from('distribution_runs')
     .select('*', { count: 'exact', head: true })
-    .eq('monthly_profit_id', profit.id)
+    .eq('monthly_profit_id', declared.id)
     .neq('status', 'void');
   if ((liveRuns ?? 0) > 0) {
     return {
@@ -72,37 +76,47 @@ export async function createDistributionRun(input: unknown): Promise<ActionResul
     };
   }
 
-  // 4) Active shareholders for the branch
-  const { data: shs, error: shErr } = await supabase
-    .from('shareholders')
-    .select('id, ownership_pct, branch_id, is_active')
-    .eq('is_active', true)
-    .eq('branch_id', branch_id)
-    .order('display_name');
-  if (shErr) return { ok: false, error: shErr.message };
+  // 4) The payout group for this branch — the members this app tracks,
+  //    NOT every shareholder. The declared figure is their pool.
+  const { data: group, error: groupErr } = await supabase.rpc('payout_group_members', {
+    p_branch: branch_id,
+  });
+  if (groupErr) return { ok: false, error: groupErr.message };
 
-  const eligible = shs ?? [];
+  const eligible = (group ?? []) as GroupMember[];
   if (eligible.length === 0) {
-    return { ok: false, error: 'No active shareholders for this branch.' };
+    return {
+      ok: false,
+      error:
+        'No payout-group members in this branch. Set "Payout handed over by" on the members this branch reports for, on the Shareholders page.',
+    };
   }
 
-  // 5) Largest-remainder allocation (sum of amounts == netProfit exactly)
+  // 5) Largest-remainder allocation over the group's RELATIVE shares.
+  //    allocateLargestRemainder normalises by the sum of the weights, so
+  //    passing raw branch percentages yields each member's share of the
+  //    group (Ummu Gaffa: 2.8966 and 1.8104 -> 61.5381% / 38.4619%), and
+  //    the amounts sum to the declared figure exactly.
   const weights = eligible.map((s) => Number(s.ownership_pct));
-  const amounts = allocateLargestRemainder(netProfit, weights);
+  const weightTotal = weights.reduce((a, b) => a + b, 0);
+  const amounts = allocateLargestRemainder(amount, weights);
 
   // 6) Atomic: insert run + items inside a single Postgres transaction via RPC.
   //    The RPC re-reads the declared figure and aborts if it moved since we
   //    allocated, so a run's items always sum to its recorded net_profit.
+  //    ownership_pct_snapshot records the share OF THIS RUN, so that
+  //    snapshot x net_profit = computed_amount stays internally consistent
+  //    (matching the historical runs backfilled in 0009).
   const itemsJson = eligible.map((s, i) => ({
-    shareholder_id: s.id,
-    ownership_pct_snapshot: Number(s.ownership_pct),
+    shareholder_id: s.shareholder_id,
+    ownership_pct_snapshot: round2((Number(s.ownership_pct) / weightTotal) * 100),
     computed_amount: amounts[i],
   }));
 
   const sb = createAdminClient();
   const { data: runId, error: runErr } = await sb.rpc('create_distribution_run', {
-    p_monthly_profit_id: profit.id,
-    p_expected_net_profit: netProfit,
+    p_monthly_profit_id: declared.id,
+    p_expected_amount: amount,
     p_notes: notes ?? null,
     p_created_by: user.id,
     p_items: itemsJson,
@@ -149,7 +163,7 @@ export async function approveDistributionRun(run_id: string): Promise<ActionResu
 
   const { data: run, error: rErr } = await supabase
     .from('distribution_runs')
-    .select('id, status, branch_id, monthly_profit_id, period_start, period_end, gross_income, total_expenses, net_profit')
+    .select('id, status, branch_id, monthly_profit_id, period_start, period_end, net_profit')
     .eq('id', run_id)
     .single();
   if (rErr || !run) return { ok: false, error: rErr?.message ?? 'Run not found' };
@@ -164,25 +178,21 @@ export async function approveDistributionRun(run_id: string): Promise<ActionResu
   // Re-read the declared figure and refuse if it drifted from the draft
   // snapshot. Prevents approving a run that no longer reflects what the
   // branch declared for the month.
-  const { data: profit, error: profitErr } = await supabase
+  const { data: declared, error: declaredErr } = await supabase
     .from('monthly_profits')
-    .select('id, net_profit, gross_income, total_expenses')
+    .select('id, declared_amount')
     .eq('id', run.monthly_profit_id)
-    .maybeSingle<Pick<DeclaredProfit, 'id' | 'net_profit' | 'gross_income' | 'total_expenses'>>();
-  if (profitErr) return { ok: false, error: profitErr.message };
-  if (!profit) {
-    return { ok: false, error: 'The declared profit for this run no longer exists. Void the run.' };
+    .maybeSingle<Pick<DeclaredAmount, 'id' | 'declared_amount'>>();
+  if (declaredErr) return { ok: false, error: declaredErr.message };
+  if (!declared) {
+    return { ok: false, error: 'The declared figure for this run no longer exists. Void the run.' };
   }
 
-  const currentNet = round2(Number(profit.net_profit));
-  if (
-    currentNet !== Number(run.net_profit) ||
-    Number(profit.gross_income ?? 0) !== Number(run.gross_income) ||
-    Number(profit.total_expenses ?? 0) !== Number(run.total_expenses)
-  ) {
+  const current = round2(Number(declared.declared_amount));
+  if (current !== Number(run.net_profit)) {
     return {
       ok: false,
-      error: `The declared profit changed since this draft was created (was net ${run.net_profit}, now ${currentNet}). Discard and recreate the draft.`,
+      error: `The declared amount changed since this draft was created (was ${run.net_profit}, now ${current}). Discard and recreate the draft.`,
     };
   }
 

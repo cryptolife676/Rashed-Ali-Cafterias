@@ -61,10 +61,8 @@ export default async function DistributionsPage() {
                     </>
                   )}
                 </div>
-                <div className="mt-1 flex gap-6 text-sm">
-                  <span>Distributable profit: <b className="text-brand-700">{formatMoney(r.net_profit)}</b></span>
-                  {Number(r.gross_income) > 0 && <span className="text-slate-500">Income: <b>{formatMoney(r.gross_income)}</b></span>}
-                  {Number(r.total_expenses) > 0 && <span className="text-slate-500">Expenses: <b>{formatMoney(r.total_expenses)}</b></span>}
+                <div className="mt-1 text-sm">
+                  <span>Amount for the group: <b className="text-brand-700">{formatMoney(r.net_profit)}</b></span>
                 </div>
               </div>
               <RunActions runId={r.id} status={r.status} role={user.role} />
@@ -98,17 +96,16 @@ export default async function DistributionsPage() {
           <div className="mt-3 space-y-3">
             <p className="text-sm text-slate-600 border-l-4 border-amber-400 pl-3">
               These months were paid out before this system existed and were imported
-              from the owner&apos;s spreadsheet. <b>The amount shown is only the total for
-              the members listed</b> — not the branch&apos;s profit for that month, which is
-              not recorded. Percentages are each member&apos;s share of that imported total,
-              not of the branch.
+              from the owner&apos;s spreadsheet, with the figures exactly as recorded there.
+              <b> The amount shown is the total for the members listed</b> — not the
+              branch&apos;s profit for that month, which is not recorded.
             </p>
             <div className="overflow-x-auto">
               <table className="tbl">
                 <thead>
                   <tr>
                     <th>Month</th><th>Branch</th><th>Members</th>
-                    <th className="text-right">Imported total</th>
+                    <th className="text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody>

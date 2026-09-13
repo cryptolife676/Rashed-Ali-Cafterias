@@ -134,18 +134,25 @@ Then in Supabase: `select * from keep_alive_logs order by pinged_at desc limit 5
 
 ## 5. Business workflow
 
-This app does not keep the branches' books. Each branch tracks its own daily
-sales and costs; what it reports here is one figure per month.
+This app does not keep the branches' books, and it does not track every
+shareholder. It tracks **one group of members** — the people whose money Mukthar
+handles (Ajmal, Naser, Abdul Rahman and Mukthar). Each branch keeps its own books
+*and* computes its own splits; what reaches this system is a single figure per
+branch per month: what that group is collectively owed.
 
 ### Once a month, per branch
-1. Accountant or admin opens **Monthly Profit** → picks branch + month → enters the
-   net profit the branch reported. Income and expenses are optional context.
+1. Shabeer (accountant) or an admin opens **Monthly Profit** → picks branch + month
+   → enters the amount owed **to the group**, not the branch's profit. The form
+   previews the per-member split as you type.
    - Re-saving the same branch and month replaces the earlier figure.
-2. Dashboard shows the declared profit per branch and which branches have reported.
+2. Dashboard shows the declared amount per branch and which branches have reported.
 
 ### Then distribute
 1. Admin opens **Distributions** → selects the same branch + month → "Create draft run".
-   - Engine reads the declared `net_profit`, snapshots ownership %, allocates with largest-remainder rounding (sum = exact net to the cent).
+   - Engine reads `declared_amount` and divides it among that branch's group members,
+     weighted by each one's `ownership_pct` **relative to the group total** — in Ummu
+     Gaffa, Naser's 2.8966% and Mukthar's 1.8104% become 61.5381% / 38.4619%.
+     Largest-remainder rounding makes the amounts sum to the declared figure exactly.
 2. Review per-shareholder amounts. Optionally enter `manual_adjustment` per item.
 3. **Approve** → that month's declared profit becomes `is_locked = true`; status → `approved`.
 4. **Pay out** → settles every outstanding item at once: creates `withdrawals` rows with `source='distribution'`, sets `paid_at`, status → `paid`. Shareholders then see it in their portfolio.
@@ -171,7 +178,8 @@ row reverses one handover and deletes its withdrawal (admin only, audit-logged).
 - **Historical runs are labelled, never silently mixed in.** `distribution_runs.is_backfill` marks months imported from records that predate this system (migration 0009 loads 25 months of Ummu Gaffa payouts for Naser and Mukthar). Their `net_profit` is the total for *only the members listed*, not the branch's profit, and their items are not a 100% allocation — so every view that shows them says so.
 - **Snapshots, not live calculations.** `distribution_items.ownership_pct_snapshot` and `computed_amount` are frozen at draft creation. Changing a shareholder's % later does NOT rewrite history.
 - **Largest-remainder allocation** ensures `Σ amounts == net_profit` exactly. Plain `pct/100*net` would lose pennies.
-- **Declared profit, not a derived ledger.** The branches keep their own books; this app stores one `monthly_profits` row per branch per month and distributes from it. (Migration 0007 replaced a daily `transactions` ledger that nobody was going to fill in.)
+- **A group's share, not a branch's profit.** `monthly_profits.declared_amount` is what the tracked group is owed — in Ummu Gaffa roughly 4.7% of the branch. Reading it as branch profit would be a ~21x error, which is why the column is not called `net_profit` and why income/expense fields were removed (0010): the branches' own books hold those, and nothing here ever computed from them.
+- **Group membership is `shareholders.payout_via_profile_id`.** A member with an intermediary is one this app tracks; everyone else stays on the cap table for context but is not part of any distribution.
 - **Locked months** prevent editing the basis of a settled payout. Admin can `void` a run to re-open (records remain in audit log).
 - **No service-role key in the browser, ever.** All mutations go through server actions or route handlers.
 - **Audit triggers** on every business table; `audit_logs` is admin-readable only.

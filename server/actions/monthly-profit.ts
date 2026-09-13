@@ -19,11 +19,12 @@ function revalidate() {
 }
 
 /**
- * Declare (or re-declare) a branch's profit for one month.
+ * Declare (or re-declare) the payout group's share for one branch-month.
  *
- * Upserts on (branch_id, period_month): a branch correcting a figure it
- * already reported should overwrite it, not create a second row that
- * would make the month ambiguous. Refused once the month is locked.
+ * The figure is what the group is collectively owed — not the branch's
+ * profit. Upserts on (branch_id, period_month): a correction to a figure
+ * already reported should overwrite it, not create a second row that would
+ * make the month ambiguous. Refused once the month is locked.
  */
 export async function upsertMonthlyProfit(
   input: unknown,
