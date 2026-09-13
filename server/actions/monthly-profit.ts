@@ -36,6 +36,24 @@ export async function upsertMonthlyProfit(
   const supabase = await createClient();
   const { branch_id, period_month } = parsed.data;
 
+  // Refuse a branch with nobody to divide the figure between. Without this
+  // the row saves happily and only fails later at distribution time, leaving
+  // an amount recorded against a branch it can never be paid out for.
+  const { count: members, error: memberErr } = await supabase
+    .from('shareholders')
+    .select('*', { count: 'exact', head: true })
+    .eq('branch_id', branch_id)
+    .eq('is_active', true)
+    .not('payout_via_profile_id', 'is', null);
+  if (memberErr) return { ok: false, error: memberErr.message };
+  if ((members ?? 0) === 0) {
+    return {
+      ok: false,
+      error:
+        'No tracked members in this branch yet, so there is nobody to divide the amount between. Add them on the Shareholders page first.',
+    };
+  }
+
   // Check the lock before writing so the user gets a readable message
   // instead of the raw trigger exception.
   const { data: existing } = await supabase

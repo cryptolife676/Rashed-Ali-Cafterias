@@ -37,6 +37,8 @@ export default function MonthlyProfitForm({
     () => group.filter((m) => m.branch_id === branchId),
     [group, branchId],
   );
+  // A branch with no tracked members has nobody to divide the figure between.
+  const noMembers = Boolean(branchId) && members.length === 0;
 
   // The same largest-remainder split the distribution engine will compute,
   // shown as you type so the per-person amounts are visible before saving.
@@ -109,7 +111,7 @@ export default function MonthlyProfitForm({
         />
       </div>
       <div>
-        <button className="btn-primary w-full" disabled={pending}>
+        <button className="btn-primary w-full" disabled={pending || noMembers}>
           {pending ? 'Saving…' : 'Save'}
         </button>
       </div>
