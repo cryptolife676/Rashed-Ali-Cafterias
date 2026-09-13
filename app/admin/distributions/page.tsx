@@ -4,6 +4,7 @@ import { requireStaff } from '@/lib/auth/guards';
 import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
 import DistributionForm from './DistributionForm';
 import RunActions from './RunActions';
+import RunItems from './RunItems';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ const RUN_SELECT =
 
 export default async function DistributionsPage() {
   const user = await requireStaff();
+  const isAdmin = ['super_admin', 'admin'].includes(user.role);
   const supabase = await createClient();
 
   // Split the two kinds of run. Backfilled history (25 months for Ummu Gaffa)
@@ -68,21 +70,19 @@ export default async function DistributionsPage() {
               <RunActions runId={r.id} status={r.status} role={user.role} />
             </div>
 
-            <table className="tbl mt-4">
-              <thead><tr><th>Shareholder</th><th className="text-right">%</th><th className="text-right">Computed</th><th className="text-right">Adjustment</th><th className="text-right">Final</th><th>Paid</th></tr></thead>
-              <tbody>
-                {(r.items ?? []).map((it: any) => (
-                  <tr key={it.id}>
-                    <td>{it.shareholder?.display_name ?? it.shareholder_id}</td>
-                    <td className="text-right">{Number(it.ownership_pct_snapshot).toFixed(2)}%</td>
-                    <td className="text-right tabular-nums">{formatMoney(it.computed_amount)}</td>
-                    <td className="text-right tabular-nums">{formatMoney(it.manual_adjustment)}</td>
-                    <td className="text-right tabular-nums font-medium">{formatMoney(it.final_amount)}</td>
-                    <td>{it.paid_at ? formatDate(it.paid_at) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <RunItems
+              declared={Number(r.net_profit)}
+              editable={r.status === 'draft' && isAdmin}
+              items={(r.items ?? []).map((it: any) => ({
+                id: it.id,
+                name: it.shareholder?.display_name ?? it.shareholder_id,
+                pct: Number(it.ownership_pct_snapshot),
+                computed: Number(it.computed_amount),
+                adjustment: Number(it.manual_adjustment),
+                final: Number(it.final_amount),
+                paidAt: it.paid_at ?? null,
+              }))}
+            />
           </div>
         ))}
         {(runs ?? []).length === 0 && <div className="card text-center text-slate-400">No distribution runs yet.</div>}

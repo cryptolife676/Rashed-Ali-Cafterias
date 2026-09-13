@@ -146,6 +146,8 @@ export default async function MonthlyProfitPage() {
                         profitId={r.id}
                         label={`${r.branch?.name ?? '—'} · ${formatMonth(r.period_month)}`}
                         locked={r.is_locked || Boolean(liveRun)}
+                        amount={amt}
+                        notes={r.notes}
                       />
                     </td>
                   </tr>
