@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatMoney, formatMonth } from '@/lib/utils';
+import { formatMoney, formatMonth, formatDate } from '@/lib/utils';
 import { payDistributionItems, unpayDistributionItem } from '@/server/actions/payouts';
 
 export type PayoutRow = {
@@ -13,6 +13,8 @@ export type PayoutRow = {
   month: string;
   amount: number;
   paid: boolean;
+  paidAt: string | null;
+  remarks: string | null;
   viaProfileId: string | null;
   viaName: string | null;
 };
@@ -32,6 +34,13 @@ export default function PayoutTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mineOnly, setMineOnly] = useState(false);
   const [showPaid, setShowPaid] = useState(false);
+  // Handovers are usually ticked some days after the cash changed hands, so
+  // the date is asked for rather than assumed to be today.
+  const [paidOn, setPaidOn] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [remarks, setRemarks] = useState('');
 
   const visible = useMemo(
     () =>
@@ -90,12 +99,16 @@ export default function PayoutTable({
     const sum = visible
       .filter((r) => ids.includes(r.itemId))
       .reduce((a, r) => a + r.amount, 0);
-    if (!confirm(`Mark ${ids.length} payout(s) totalling ${formatMoney(sum)} as handed over?`)) return;
+    if (!paidOn) { setMsg({ type: 'err', text: 'Pick the date it was paid' }); return; }
+    if (!confirm(
+      `Mark ${ids.length} payout(s) totalling ${formatMoney(sum)} as handed over on ${formatDate(paidOn)}?`,
+    )) return;
     setMsg(null);
     start(async () => {
-      const res = await payDistributionItems(ids);
+      const res = await payDistributionItems(ids, { paidOn, remarks: remarks || null });
       if (!res.ok) { setMsg({ type: 'err', text: res.error }); return; }
       setSelected(new Set());
+      setRemarks('');
       setMsg({ type: 'ok', text: `Marked ${res.data.paid_count} payout(s), ${formatMoney(res.data.total_amount)}.` });
       router.refresh();
     });
@@ -156,19 +169,39 @@ export default function PayoutTable({
             <input type="checkbox" checked={showPaid} onChange={(e) => setShowPaid(e.target.checked)} />
             Show already forwarded
           </label>
-          <div className="ml-auto flex items-center gap-3">
-            {selected.size > 0 && (
-              <span className="text-sm text-slate-500">{selected.size} selected</span>
-            )}
-            <button
-              className="btn-primary"
-              disabled={pending || selected.size === 0}
-              onClick={markForwarded}
-            >
+        </div>
+
+        {selected.size > 0 && (
+          <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-3 grid grid-cols-1 sm:grid-cols-[auto_10rem_1fr_auto] gap-3 items-end">
+            <div className="text-sm font-medium text-slate-700 sm:pb-2.5">
+              {selected.size} selected ·{' '}
+              {formatMoney(visible.filter((r) => selected.has(r.itemId)).reduce((a, r) => a + r.amount, 0))}
+            </div>
+            <div>
+              <label className="label">Paid on</label>
+              <input
+                className="input"
+                type="date"
+                value={paidOn}
+                onChange={(e) => setPaidOn(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="label">Remarks</label>
+              <input
+                className="input"
+                placeholder="optional — e.g. cash to Naser, bank transfer"
+                maxLength={500}
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+              />
+            </div>
+            <button className="btn-primary" disabled={pending} onClick={markForwarded}>
               {pending ? 'Saving…' : 'Mark forwarded'}
             </button>
           </div>
-        </div>
+        )}
 
         {msg && (
           <div className={`text-sm ${msg.type === 'ok' ? 'text-emerald-700' : 'text-red-600'}`}>
@@ -195,6 +228,8 @@ export default function PayoutTable({
                 <th className="text-right">Amount</th>
                 <th>Handed over by</th>
                 <th>Status</th>
+                <th>Paid on</th>
+                <th>Remarks</th>
                 <th></th>
               </tr>
             </thead>
@@ -223,6 +258,10 @@ export default function PayoutTable({
                       ? <span className="text-xs text-emerald-700">forwarded</span>
                       : <span className="text-xs text-amber-700">outstanding</span>}
                   </td>
+                  <td className="whitespace-nowrap text-slate-500">
+                    {r.paidAt ? formatDate(r.paidAt) : '—'}
+                  </td>
+                  <td className="wrap text-slate-500 text-xs max-w-xs">{r.remarks ?? ''}</td>
                   <td>
                     {r.paid && (
                       <button
@@ -238,7 +277,7 @@ export default function PayoutTable({
               ))}
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="text-slate-400 py-6 text-center">
+                  <td colSpan={10} className="text-slate-400 py-6 text-center">
                     {mineOnly
                       ? 'Nothing outstanding for you to hand over.'
                       : 'Nothing outstanding — approve a distribution run to create payouts.'}

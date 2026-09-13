@@ -9,6 +9,7 @@ type ItemRow = {
   shareholder_id: string;
   final_amount: number;
   paid_at: string | null;
+  payment_ref: string | null;
   run: {
     id: string;
     status: string;
@@ -33,7 +34,7 @@ export default async function PayoutsPage() {
   const { data: items } = await supabase
     .from('distribution_items')
     .select(
-      'id, shareholder_id, final_amount, paid_at, ' +
+      'id, shareholder_id, final_amount, paid_at, payment_ref, ' +
         'run:distribution_runs!inner(id, status, period_start, is_backfill, branch:branches(name)), ' +
         'shareholder:shareholders(display_name, payout_via_profile_id)',
     )
@@ -58,6 +59,8 @@ export default async function PayoutsPage() {
       month: it.run?.period_start ?? '',
       amount: Number(it.final_amount),
       paid: Boolean(it.paid_at),
+      paidAt: it.paid_at,
+      remarks: it.payment_ref,
       viaProfileId: via,
       viaName: via ? (nameById.get(via) ?? 'unknown') : null,
     };
@@ -68,8 +71,9 @@ export default async function PayoutsPage() {
       <div>
         <h1 className="text-2xl font-semibold">Payouts</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Every shareholder payout from an approved distribution run. Tick the ones
-          you have handed over to keep track of what is still owed.
+          Every payout from an approved distribution run. Tick the ones you have
+          handed over, with the date you paid and any remark, to keep track of
+          what is still owed.
         </p>
       </div>
 

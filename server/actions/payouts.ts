@@ -12,6 +12,13 @@ const idsSchema = z
   .min(1, 'Select at least one payout')
   .max(500, 'Too many payouts in one action');
 
+// When the cash actually changed hands, and how. The future-date check lives
+// in the database, against Dubai time, so it cannot disagree with the record.
+const handoverSchema = z.object({
+  paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick the date it was paid'),
+  remarks: z.string().max(500, 'Remarks are too long').optional().nullable(),
+});
+
 function revalidate() {
   revalidatePath('/admin/payouts');
   revalidatePath('/admin/distributions');
@@ -20,7 +27,7 @@ function revalidate() {
 }
 
 /**
- * Mark specific payouts as handed over.
+ * Mark specific payouts as handed over, on the date it actually happened.
  *
  * Admin-only: marking a handover asserts that money changed hands, so it
  * carries the same weight as paying a run. `paid_by` records who said so.
@@ -30,14 +37,22 @@ function revalidate() {
  */
 export async function payDistributionItems(
   itemIds: string[],
+  handover: { paidOn: string; remarks?: string | null },
 ): Promise<ActionResult<{ paid_count: number; total_amount: number }>> {
   const user = await requireAdmin();
   const parsed = idsSchema.safeParse(itemIds);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const h = handoverSchema.safeParse(handover);
+  if (!h.success) return { ok: false, error: h.error.issues[0].message };
 
   const sb = createAdminClient();
   const { data, error } = await sb
-    .rpc('pay_distribution_items', { p_item_ids: parsed.data, p_actor: user.id })
+    .rpc('pay_distribution_items', {
+      p_item_ids: parsed.data,
+      p_actor: user.id,
+      p_paid_on: h.data.paidOn,
+      p_remarks: h.data.remarks ?? null,
+    })
     .single<{ paid_count: number; total_amount: number }>();
   if (error) return { ok: false, error: error.message };
 
