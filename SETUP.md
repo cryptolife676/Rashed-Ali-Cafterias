@@ -185,6 +185,7 @@ row reverses one handover and deletes its withdrawal (admin only, audit-logged).
 - **Largest-remainder allocation** ensures `Σ amounts == net_profit` exactly. Plain `pct/100*net` would lose pennies.
 - **A group's share, not a branch's profit.** `monthly_profits.declared_amount` is what the tracked group is owed — in Ummu Gaffa roughly 4.7% of the branch. Reading it as branch profit would be a ~21x error, which is why the column is not called `net_profit` and why income/expense fields were removed (0010): the branches' own books hold those, and nothing here ever computed from them.
 - **Group membership is `shareholders.payout_via_profile_id`.** A member with an intermediary is one this app tracks; everyone else stays on the cap table for context but is not part of any distribution.
+- **The team leads, the rest is a tab away.** Shareholders opens on *My team* with *Other partners* alongside (`?view=others`), and the Portfolios selector lists the team first. The other partners are never hidden — branch ownership totals still show the full 100% — they just do not crowd the people the app is actually for.
 - **Locked months** prevent editing the basis of a settled payout. Admin can `void` a run to re-open (records remain in audit log).
 - **No service-role key in the browser, ever.** All mutations go through server actions or route handlers.
 - **Audit triggers** on every business table; `audit_logs` is admin-readable only.

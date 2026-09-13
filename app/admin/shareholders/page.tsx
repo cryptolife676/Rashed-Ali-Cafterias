@@ -12,9 +12,18 @@ type Shareholder = {
   branch_id: string | null;
   profile_id: string | null;
   is_active: boolean;
+  payout_via_profile_id: string | null;
 };
 
-export default async function ShareholdersPage() {
+export default async function ShareholdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>;
+}) {
+  const { view } = await searchParams;
+  // The app exists to track one team; the rest of each branch's cap table is
+  // context, kept a tab away rather than mixed in.
+  const showOthers = view === 'others';
   const supabase = await createClient();
   const [{ data: shareholders }, { data: branches }, { data: summary }] = await Promise.all([
     supabase.from('shareholders').select('*').order('display_name'),
@@ -41,6 +50,15 @@ export default async function ShareholdersPage() {
     return a.display_name.localeCompare(b.display_name);
   });
 
+  const team = sorted.filter((s) => s.payout_via_profile_id);
+  const others = sorted.filter((s) => !s.payout_via_profile_id);
+  const rows = showOthers ? others : team;
+
+  const tab = (active: boolean) =>
+    `px-4 py-2 rounded-xl text-sm font-semibold transition ${
+      active ? 'bg-brand-600 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+    }`;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Shareholders</h1>
@@ -66,7 +84,23 @@ export default async function ShareholdersPage() {
 
       <ShareholderForm branches={branches ?? []} />
 
+      <div className="flex flex-wrap gap-2">
+        <Link href="/admin/shareholders" className={tab(!showOthers)}>
+          My team ({team.length})
+        </Link>
+        <Link href="/admin/shareholders?view=others" className={tab(showOthers)}>
+          Other partners ({others.length})
+        </Link>
+      </div>
+
       <div className="card">
+        {showOthers && (
+          <p className="text-sm text-slate-500 mb-3">
+            Everyone else on the branches&apos; cap tables. They are shown for context —
+            this app does not handle their payouts, so they never appear in a
+            distribution run.
+          </p>
+        )}
         <table className="tbl">
           <thead>
             <tr>
@@ -77,7 +111,7 @@ export default async function ShareholdersPage() {
             </tr>
           </thead>
           <tbody>
-            {sorted.map((s) => {
+            {rows.map((s) => {
               const sm = sumByID.get(s.id) as
                 | { total_invested?: number | string; total_profit_earned?: number | string; total_withdrawn?: number | string }
                 | undefined;
@@ -98,7 +132,11 @@ export default async function ShareholdersPage() {
                 </tr>
               );
             })}
-            {sorted.length === 0 && <tr><td colSpan={8} className="text-slate-400 py-6 text-center">No shareholders</td></tr>}
+            {rows.length === 0 && (
+              <tr><td colSpan={8} className="text-slate-400 py-6 text-center">
+                {showOthers ? 'No other partners recorded.' : 'No team members yet.'}
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>

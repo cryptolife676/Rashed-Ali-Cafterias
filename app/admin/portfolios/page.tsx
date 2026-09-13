@@ -20,21 +20,30 @@ export default async function PortfoliosPage({
 
   const { data } = await supabase
     .from('shareholders')
-    .select('id, display_name, ownership_pct, profile_id, branch_id, branch:branches(name)')
+    .select('id, display_name, ownership_pct, profile_id, branch_id, payout_via_profile_id, branch:branches(name)')
     .eq('is_active', true)
     .order('display_name');
 
   const list: any[] = data ?? [];
 
-  // Group members by branch for the selector
-  const byBranch = new Map<string, any[]>();
-  for (const s of list) {
-    const bn = s.branch?.name ?? '—';
-    const arr = byBranch.get(bn);
-    if (arr) arr.push(s);
-    else byBranch.set(bn, [s]);
+  // The team this app is for comes first; the rest of each cap table sits
+  // under it as context. Within each, still grouped by branch.
+  function groupByBranch(rows: any[]) {
+    const m = new Map<string, any[]>();
+    for (const s of rows) {
+      const bn = s.branch?.name ?? '—';
+      const arr = m.get(bn);
+      if (arr) arr.push(s);
+      else m.set(bn, [s]);
+    }
+    return Array.from(m.entries()).sort(([a], [b]) => a.localeCompare(b));
   }
-  const branchGroups = Array.from(byBranch.entries()).sort(([a], [b]) => a.localeCompare(b));
+  const teamGroups = groupByBranch(list.filter((s) => s.payout_via_profile_id));
+  const otherGroups = groupByBranch(list.filter((s) => !s.payout_via_profile_id));
+  const sections: { title: string; groups: [string, any[]][] }[] = [
+    { title: 'My team', groups: teamGroups },
+    { title: 'Other partners', groups: otherGroups },
+  ].filter((sec) => sec.groups.length > 0);
 
   const selected = list.find((s) => s.id === sh) ?? null;
 
@@ -95,27 +104,34 @@ export default async function PortfoliosPage({
         {/* ── Selector ── */}
         <aside className="card p-0 overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 text-[11px] font-bold uppercase tracking-widest text-slate-400">
-            Members by branch
+            Members
           </div>
           <div className="max-h-[72vh] overflow-y-auto">
-            {branchGroups.map(([branchName, rows]) => (
-              <div key={branchName}>
-                <div className="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-100">
-                  {branchName}
+            {sections.map((sec) => (
+              <div key={sec.title}>
+                <div className="px-4 py-2 bg-slate-900 text-[11px] font-bold uppercase tracking-widest text-white/80">
+                  {sec.title}
                 </div>
-                {rows.map((s) => (
-                  <Link
-                    key={s.id}
-                    href={`/admin/portfolios?sh=${s.id}`}
-                    className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm border-b border-slate-50 transition-colors ${
-                      s.id === sh ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span className="truncate">{s.display_name}</span>
-                    <span className="text-xs text-slate-400 tabular-nums shrink-0">
-                      {Number(s.ownership_pct).toFixed(2)}%
-                    </span>
-                  </Link>
+                {sec.groups.map(([branchName, rows]) => (
+                  <div key={sec.title + branchName}>
+                    <div className="px-4 py-2 bg-slate-50 text-xs font-bold text-slate-600 border-b border-slate-100">
+                      {branchName}
+                    </div>
+                    {rows.map((s) => (
+                      <Link
+                        key={s.id}
+                        href={`/admin/portfolios?sh=${s.id}`}
+                        className={`flex items-center justify-between gap-2 px-4 py-2.5 text-sm border-b border-slate-50 transition-colors ${
+                          s.id === sh ? 'bg-brand-50 text-brand-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="truncate">{s.display_name}</span>
+                        <span className="text-xs text-slate-400 tabular-nums shrink-0">
+                          {Number(s.ownership_pct).toFixed(2)}%
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
                 ))}
               </div>
             ))}
