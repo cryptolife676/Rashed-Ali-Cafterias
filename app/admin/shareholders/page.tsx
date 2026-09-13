@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney } from '@/lib/utils';
+import { sumBy } from '@/lib/totals';
 import ShareholderForm from './ShareholderForm';
 
 export const dynamic = 'force-dynamic';
@@ -138,6 +139,21 @@ export default async function ShareholdersPage({
               </td></tr>
             )}
           </tbody>
+          {rows.length > 0 && (() => {
+            const pick = (s: Shareholder, k: 'total_invested' | 'total_profit_earned' | 'total_withdrawn') =>
+              (sumByID.get(s.id) as Record<string, number | string> | undefined)?.[k];
+            return (
+              <tfoot>
+                <tr>
+                  <td colSpan={3}>Total ({rows.length} holdings)</td>
+                  <td className="text-right tabular-nums">{formatMoney(sumBy(rows, (s) => pick(s, 'total_invested')))}</td>
+                  <td className="text-right tabular-nums">{formatMoney(sumBy(rows, (s) => pick(s, 'total_profit_earned')))}</td>
+                  <td className="text-right tabular-nums">{formatMoney(sumBy(rows, (s) => pick(s, 'total_withdrawn')))}</td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
+            );
+          })()}
         </table>
       </div>
     </div>

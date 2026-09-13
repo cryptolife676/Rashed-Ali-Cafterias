@@ -184,6 +184,16 @@ export default async function DashboardPage() {
               <tr><td colSpan={2} className="text-slate-400 py-6 text-center">Nothing declared yet — add a month in Monthly Profit</td></tr>
             )}
           </tbody>
+          {monthly.length > 0 && (
+            <tfoot>
+              <tr>
+                <td>Total ({monthly.length} months)</td>
+                <td className="text-right tabular-nums">
+                  {formatMoney(monthly.reduce((a, m) => a + m.total, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

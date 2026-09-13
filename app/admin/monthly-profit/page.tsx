@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatMonth } from '@/lib/utils';
+import { sumBy } from '@/lib/totals';
 import MonthlyProfitForm, { type GroupMember } from './MonthlyProfitForm';
 import ProfitRowActions from './ProfitRowActions';
 
@@ -161,6 +162,15 @@ export default async function MonthlyProfitPage() {
                 </tr>
               )}
             </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={2}>Total ({rows.length} months)</td>
+                  <td className="text-right tabular-nums">{formatMoney(sumBy(rows, (r) => r.declared_amount))}</td>
+                  <td colSpan={3}></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { requireShareholder } from '@/lib/auth/guards';
 import { createClient } from '@/lib/supabase/server';
 import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
+import { sumBy, distributionTotals } from '@/lib/totals';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,6 +130,16 @@ export default async function PortfolioPage() {
                 );
               })}
             </tbody>
+            {shareholderRows.length > 1 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={2}>Total</td>
+                  <td className="text-right tabular-nums">{formatMoney(totalInvested)}</td>
+                  <td className="text-right tabular-nums">{formatMoney(totalEarned)}</td>
+                  <td className="text-right tabular-nums">{formatMoney(totalWithdrawn)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 
@@ -169,6 +180,30 @@ export default async function PortfolioPage() {
                 <tr><td colSpan={7} className="text-slate-400 py-4 text-center">No distributions yet</td></tr>
               )}
             </tbody>
+            {(items ?? []).length > 0 && (() => {
+              const t = distributionTotals((items ?? []));
+              return (
+                <tfoot>
+                  <tr>
+                    <td colSpan={3}>
+                      Total
+                      {t.excluded > 0 && (
+                        <span className="ml-1 text-xs font-normal text-slate-500">
+                          (approved &amp; paid only; {t.excluded} void/draft excluded)
+                        </span>
+                      )}
+                    </td>
+                    <td className="text-right tabular-nums">{formatMoney(t.computed)}</td>
+                    <td className="text-right tabular-nums">{formatMoney(t.adjustment)}</td>
+                    <td className="text-right tabular-nums">{formatMoney(t.final)}</td>
+                    <td className="whitespace-nowrap text-xs font-normal text-slate-600">
+                      paid {formatMoney(t.paid)}
+                      {t.owed > 0.004 && <> · owed {formatMoney(t.owed)}</>}
+                    </td>
+                  </tr>
+                </tfoot>
+              );
+            })()}
           </table>
         </div>
 
@@ -193,6 +228,15 @@ export default async function PortfolioPage() {
                   <tr><td colSpan={4} className="text-slate-400 py-4 text-center">None</td></tr>
                 )}
               </tbody>
+              {(investments ?? []).length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={2}>Total</td>
+                    <td className="text-right tabular-nums">{formatMoney(sumBy(investments ?? [], (i: any) => i.amount))}</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
           <div className="card">
@@ -212,6 +256,14 @@ export default async function PortfolioPage() {
                   <tr><td colSpan={4} className="text-slate-400 py-4 text-center">None</td></tr>
                 )}
               </tbody>
+              {(withdrawals ?? []).length > 0 && (
+                <tfoot>
+                  <tr>
+                    <td colSpan={3}>Total</td>
+                    <td className="text-right tabular-nums">{formatMoney(sumBy(withdrawals ?? [], (w: any) => w.amount))}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>

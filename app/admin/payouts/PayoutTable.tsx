@@ -285,6 +285,17 @@ export default function PayoutTable({
                 </tr>
               )}
             </tbody>
+            {visible.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={4}>Total shown ({visible.length})</td>
+                  <td className="text-right tabular-nums">
+                    {formatMoney(visible.reduce((a, r) => a + r.amount, 0))}
+                  </td>
+                  <td colSpan={5}></td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

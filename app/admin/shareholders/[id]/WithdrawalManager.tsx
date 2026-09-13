@@ -95,6 +95,17 @@ export default function WithdrawalManager({
             <tr><td colSpan={5} className="text-slate-400 py-4 text-center">No withdrawals yet</td></tr>
           )}
         </tbody>
+        {withdrawals.length > 0 && (
+          <tfoot>
+            <tr>
+              <td colSpan={2}>Total</td>
+              <td className="text-right tabular-nums">
+                {formatMoney(withdrawals.reduce((a, w) => a + Number(w.amount), 0))}
+              </td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

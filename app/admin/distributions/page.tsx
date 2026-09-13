@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { requireStaff } from '@/lib/auth/guards';
 import { formatMoney, formatDate, formatMonth } from '@/lib/utils';
+import { sumBy } from '@/lib/totals';
 import DistributionForm from './DistributionForm';
 import RunActions from './RunActions';
 import RunItems from './RunItems';
@@ -122,6 +123,14 @@ export default async function DistributionsPage() {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={3}>Total ({(historical ?? []).length} months)</td>
+                    <td className="text-right tabular-nums">
+                      {formatMoney(sumBy(historical ?? [], (r: any) => r.net_profit))}
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>

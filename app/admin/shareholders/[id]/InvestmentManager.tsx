@@ -138,6 +138,17 @@ export default function InvestmentManager({
             <tr><td colSpan={4} className="text-slate-400 py-4 text-center">No investments yet</td></tr>
           )}
         </tbody>
+        {investments.length > 0 && (
+          <tfoot>
+            <tr>
+              <td>Total</td>
+              <td className="text-right tabular-nums">
+                {formatMoney(investments.reduce((a, inv) => a + Number(inv.amount), 0))}
+              </td>
+              <td colSpan={2}></td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

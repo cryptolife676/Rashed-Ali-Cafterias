@@ -50,6 +50,9 @@ table.tbl th {
 table.tbl td   { @apply px-4 py-3 border-b border-slate-100 text-slate-700; }
 table.tbl tbody tr:hover { @apply bg-slate-50/60; }
 table.tbl tbody tr:last-child td { @apply border-b-0; }
+table.tbl tfoot td {
+  @apply bg-slate-50 font-semibold text-slate-900 border-t-2 border-b-0 border-slate-200;
+}
 
 /* On phones a wide table must scroll inside its own box rather than
    stretching the page sideways. Applies to every .tbl without needing a
