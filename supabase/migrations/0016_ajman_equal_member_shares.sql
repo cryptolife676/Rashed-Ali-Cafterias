@@ -28,6 +28,42 @@
 -- re-locked. Verifies and rolls back on any mismatch.
 -- =====================================================================
 
+-- ---------------------------------------------------------------------
+-- 0) Repair the monthly_profits lock trigger (bug since 0010)
+--
+--    prevent_locked_profit_edit() was written in 0007 against net_profit,
+--    gross_income and total_expenses. 0010 renamed net_profit to
+--    declared_amount and dropped the other two without updating it, so ANY
+--    update to a locked month now fails with "record new has no field
+--    net_profit" — including the lock-flag-only unlock that voiding an
+--    approved run performs. This correction is the first unlock since 0010,
+--    which is how it surfaced. Recreated against the current columns; the
+--    trigger itself is unchanged and picks up the new function body.
+-- ---------------------------------------------------------------------
+create or replace function prevent_locked_profit_edit()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'DELETE' then
+    if old.is_locked then
+      raise exception 'Cannot delete monthly profit %: it has been distributed', old.id;
+    end if;
+    return old;
+  end if;
+
+  if old.is_locked then
+    -- Allow the approve/unlock path to toggle is_locked and nothing else.
+    if new.branch_id = old.branch_id
+       and new.period_month = old.period_month
+       and new.declared_amount = old.declared_amount
+       and new.notes is not distinct from old.notes then
+      return new;
+    end if;
+    raise exception 'Cannot edit monthly profit %: it has been distributed', old.id;
+  end if;
+
+  return new;
+end $$;
+
 do $$
 declare
   v_branch uuid;
