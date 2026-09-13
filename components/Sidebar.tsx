@@ -1,5 +1,11 @@
+'use client';
+
 import Link from 'next/link';
-import { LayoutDashboard, CalendarRange, Users, PieChart, BadgeDollarSign, HandCoins, FileText, ScrollText, KeyRound } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import {
+  LayoutDashboard, CalendarRange, Users, PieChart, BadgeDollarSign,
+  HandCoins, FileText, ScrollText, KeyRound,
+} from 'lucide-react';
 
 const items = [
   { href: '/admin/dashboard',      label: 'Dashboard',      icon: LayoutDashboard },
@@ -17,12 +23,25 @@ const superAdminItems = [
   { href: '/admin/users',          label: 'Users',          icon: KeyRound },
 ];
 
-export default function Sidebar({ role }: { role?: string }) {
-  return (
-    <aside className="w-64 shrink-0 min-h-screen flex flex-col" style={{ background: '#0c0b09' }}>
+/**
+ * Nav contents only — the shell decides whether this sits in a fixed rail
+ * (desktop) or a slide-in drawer (mobile). `onNavigate` lets the shell close
+ * the drawer when a link is tapped.
+ */
+export default function Sidebar({
+  role,
+  onNavigate,
+}: {
+  role?: string;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const nav = [...items, ...(role === 'super_admin' ? superAdminItems : [])];
 
+  return (
+    <div className="h-full flex flex-col" style={{ background: '#0c0b09' }}>
       {/* Logo */}
-      <div className="px-5 py-5 border-b" style={{ borderColor: 'rgba(201,162,39,0.15)' }}>
+      <div className="px-5 py-5 border-b shrink-0" style={{ borderColor: 'rgba(201,162,39,0.15)' }}>
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
@@ -40,28 +59,37 @@ export default function Sidebar({ role }: { role?: string }) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-5 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-0.5">
         <p className="px-3 mb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(201,162,39,0.5)' }}>
           Navigation
         </p>
-        {[...items, ...(role === 'super_admin' ? superAdminItems : [])].map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 text-white/55 hover:bg-[rgba(201,162,39,0.1)] hover:text-[#c9a227]"
-          >
-            <Icon className="w-4 h-4 shrink-0" />
-            {label}
-          </Link>
-        ))}
+        {nav.map(({ href, label, icon: Icon }) => {
+          const active = pathname === href || pathname.startsWith(`${href}/`);
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={onNavigate}
+              aria-current={active ? 'page' : undefined}
+              className={`group flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+                active
+                  ? 'bg-[rgba(201,162,39,0.14)] text-[#c9a227]'
+                  : 'text-white/55 hover:bg-[rgba(201,162,39,0.1)] hover:text-[#c9a227]'
+              }`}
+            >
+              <Icon className="w-4 h-4 shrink-0" />
+              {label}
+            </Link>
+          );
+        })}
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t" style={{ borderColor: 'rgba(201,162,39,0.1)' }}>
+      <div className="px-5 py-4 border-t shrink-0" style={{ borderColor: 'rgba(201,162,39,0.1)' }}>
         <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
           © {new Date().getFullYear()} Rashed Ali Co.
         </p>
       </div>
-    </aside>
+    </div>
   );
 }

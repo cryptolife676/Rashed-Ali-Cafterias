@@ -14,11 +14,13 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
-        <div className="text-sm text-slate-500">
-          Signed in as <b>{user.fullName}</b> · {user.role}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+        <div className="text-sm text-slate-500 min-w-0 truncate">
+          <span className="hidden sm:inline">Signed in as </span>
+          <b className="text-slate-700">{user.fullName}</b>
+          <span className="hidden sm:inline"> · {user.role}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <Link href={backHref} className="btn-secondary text-xs">Back</Link>
           <form action="/api/auth/signout" method="post">
             <button className="btn-secondary text-xs">Sign out</button>
@@ -26,7 +28,7 @@ export default async function AccountPage() {
         </div>
       </header>
 
-      <main className="p-6 space-y-6">
+      <main className="p-4 sm:p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-semibold">Your account</h1>
           <p className="text-sm text-slate-500 mt-1">

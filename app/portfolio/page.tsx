@@ -75,27 +75,33 @@ export default async function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-        <div>
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-6 py-3 sm:py-4 flex items-start justify-between gap-3">
+        <div className="min-w-0">
           <div className="text-xs text-slate-500">Portfolio</div>
-          <div className="font-semibold">{displayName}</div>
-          <div className="text-xs text-slate-400">
+          <div className="font-semibold truncate">{displayName}</div>
+          <div className="text-xs text-slate-400 flex flex-wrap gap-x-3">
             {shareholderRows.map((s) => (
-              <span key={s.id} className="mr-3">
+              <span key={s.id}>
                 {(s.branch as unknown as { name: string } | null)?.name ?? '—'}: {Number(s.ownership_pct).toFixed(2)}%
               </span>
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Link href="/account" className="btn-secondary text-xs">My account</Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/account" className="btn-secondary text-xs whitespace-nowrap">
+            <span className="hidden sm:inline">My account</span>
+            <span className="sm:hidden">Account</span>
+          </Link>
           <form action="/api/auth/signout" method="post">
-            <button className="btn-secondary text-xs">Sign out</button>
+            <button className="btn-secondary text-xs whitespace-nowrap">
+              <span className="hidden sm:inline">Sign out</span>
+              <span className="sm:hidden">Out</span>
+            </button>
           </form>
         </div>
       </header>
 
-      <main className="p-6 space-y-6 max-w-5xl mx-auto">
+      <main className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto">
         {/* Summary KPIs across all branches */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="kpi"><span className="kpi-label">Total Invested</span><span className="kpi-value">{formatMoney(totalInvested)}</span></div>

@@ -51,6 +51,29 @@ table.tbl td   { @apply px-4 py-3 border-b border-slate-100 text-slate-700; }
 table.tbl tbody tr:hover { @apply bg-slate-50/60; }
 table.tbl tbody tr:last-child td { @apply border-b-0; }
 
+/* On phones a wide table must scroll inside its own box rather than
+   stretching the page sideways. Applies to every .tbl without needing a
+   wrapper at each call site. */
+@media (max-width: 1023px) {
+  table.tbl {
+    display: block;
+    min-width: 100%;
+    width: max-content;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+  table.tbl th, table.tbl td { @apply px-3 py-2.5; }
+  /* Notes columns are the usual culprit for absurd widths. */
+  table.tbl td.wrap { white-space: normal; min-width: 12rem; }
+}
+
+/* Comfortable tap targets on touch devices. */
+@media (hover: none) {
+  .btn { @apply py-2.5; }
+  .input { @apply py-3 text-base; }
+}
+
 /* ── Badges ── */
 .badge         { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold; }
 .badge-green   { @apply badge bg-emerald-100 text-emerald-700; }
